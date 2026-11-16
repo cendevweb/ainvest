@@ -38,7 +38,7 @@ export default async function Journal() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  {s.status === "error" ? <span className="chip bad">Échec</span> : <span className="chip">{s.trigger === "cron" ? "Planifiée" : "Manuelle"}</span>}
+                  {s.status === "error" ? <span className="chip bad">Échec</span> : <span className="chip">{s.trigger === "cron" ? "Planifiée" : s.trigger === "claude" ? "Routine Claude" : "Manuelle"}</span>}
                   {s.stats && <span className="chip">{duration(s.stats.durationMs)}</span>}
                 </div>
               </Link>

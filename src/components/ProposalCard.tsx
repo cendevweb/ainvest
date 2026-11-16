@@ -12,6 +12,19 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   blocked: { label: "Bloquée par tes règles", cls: "chip bad" },
 };
 
+/** Lien vers claude.ai avec une consigne préremplie : l'approfondissement tourne sur ton abonnement Claude. */
+function deepDiveUrl(p: StoredProposal, sessionId: string): string {
+  const prompt = [
+    `Avec mes connecteurs AInvest et Finary, aide-moi à décider sur la proposition « ${p.title} » (${p.ticker}, séance ${sessionId}).`,
+    `1. Appelle get_session du connecteur AInvest avec session_id "${sessionId}" pour relire le rapport, cette proposition et mes règles.`,
+    "2. Vérifie ma position actuelle avec le connecteur Finary (lecture seule).",
+    "3. Approfondis : thèse et contre-thèse, valorisation, catalyseurs à venir, risques, alternatives, taille de position et fiscalité CTO. Cite tes sources.",
+    "4. Termine par un verdict clair (faire, ajuster, ne pas faire) et le niveau qui invaliderait l'idée.",
+    "Ne passe aucun ordre.",
+  ].join("\n");
+  return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+}
+
 export function ProposalCard({ p, sessionId }: { p: StoredProposal; sessionId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -127,6 +140,9 @@ export function ProposalCard({ p, sessionId }: { p: StoredProposal; sessionId: s
         {st === "rejected" && (
           <button className="btn" disabled={busy} onClick={() => decide("pending")} type="button">Revenir dessus</button>
         )}
+        <a className="btn ghost" href={deepDiveUrl(p, sessionId)} target="_blank" rel="noreferrer noopener" title="Ouvre claude.ai avec une consigne préremplie, sur ton abonnement Claude">
+          Creuser avec Claude
+        </a>
         <button className="btn ghost" onClick={() => setOpen((v) => !v)} type="button">
           {open ? "Masquer le raisonnement" : "Raisonnement et sources"}
         </button>

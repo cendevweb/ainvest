@@ -15,7 +15,7 @@ export type TraceStep = { kind: "finary" | "web_search" | "web_fetch" | "report"
 
 export type Session = {
   id: string;
-  trigger: "cron" | "manual";
+  trigger: "cron" | "manual" | "claude";
   status: "running" | "done" | "error";
   model: string;
   startedAt: number;
