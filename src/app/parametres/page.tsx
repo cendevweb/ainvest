@@ -39,7 +39,10 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           ) : (
             <>
               <p style={{ marginTop: 0 }}>Tu vas être redirigé vers l&apos;écran d&apos;autorisation Finary. Accorde l&apos;accès en lecture au patrimoine ; les autres droits sont facultatifs.</p>
-              <a className="btn primary" href="/api/finary/connect">Connecter Finary</a>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a className="btn primary" href="/api/finary/connect">Connecter Finary</a>
+                <form action="/api/finary/disconnect" method="post"><button className="btn" type="submit">Réinitialiser le client OAuth</button></form>
+              </div>
             </>
           )}
           <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>URL de retour OAuth : <code>{redirectUri()}</code>. Tu peux révoquer l&apos;accès à tout moment dans Finary, rubrique Sécurité.</p>

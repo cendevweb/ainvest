@@ -27,6 +27,7 @@ L'URL Vercel étant publique, l'accès à l'app est protégé par un mot de pass
    - `APP_SECRET` et `ENCRYPTION_KEY` : deux valeurs différentes, générées chacune avec `openssl rand -base64 32`.
    - `CRON_SECRET` : une longue valeur aléatoire ; Vercel l'envoie à la tâche planifiée.
    - `APP_URL` : l'URL de ton instance, par exemple `https://mon-ainvest.vercel.app`.
+   - `FINARY_CLIENT_ID` (facultatif) : le client OAuth que Finary a autorisé pour ton instance (voir *Limites connues*).
    - `AINVEST_MODEL` (facultatif) : `claude-opus-5-5` par défaut, `claude-sonnet-5-5` pour réduire le coût.
 4. **Déploie**, ouvre ton URL, entre ton mot de passe, puis va dans **Paramètres → Connecter Finary**.
 
@@ -44,7 +45,7 @@ La tâche planifiée tourne à 6 h 45 UTC du lundi au vendredi (`vercel.json`), 
 
 - **Durée d'une séance** : plusieurs minutes. Les routes demandent `maxDuration = 800` ; Vercel plafonne selon ton offre et la configuration Fluid Compute. Si ta séance est coupée, baisse `max_uses` des outils web ou passe sur Sonnet.
 - **Exécution des ordres** : non branchée. Trade Republic n'a pas d'API d'ordres publique ; les bibliothèques non officielles exposent à un blocage de compte.
-- **Connexion Finary** : le client OAuth suit la spécification d'autorisation MCP (métadonnées de ressource protégée, document de métadonnées client hébergé par l'instance, ou enregistrement dynamique, PKCE). Il n'a pas encore été testé contre le serveur Finary réel : remonte une issue si la connexion échoue.
+- **Connexion Finary** : le serveur MCP de Finary n'accepte que des clients OAuth pré-approuvés. Une instance auto-hébergée reçoit donc `invalid_client` tant que Finary ne l'a pas autorisée. Pour l'obtenir, contacte Finary (support ou fil du MCP sur le forum communautaire) en donnant l'URL de retour affichée dans **Paramètres** (`https://ton-instance/api/finary/callback`), puis renseigne le `client_id` reçu dans `FINARY_CLIENT_ID` et redéploie. En attendant, tu peux interroger ton patrimoine directement dans Claude en ajoutant `https://public-api.finary.com/mcp` comme connecteur personnalisé sur claude.ai.
 - **Chiffres du CTO** : les règles sont vérifiées sur l'instantané que Claude relaie depuis Finary. Une lecture directe des positions par le serveur est prévue.
 
 ## Développement
