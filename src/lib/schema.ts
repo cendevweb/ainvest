@@ -53,14 +53,14 @@ export type Report = z.infer<typeof ReportSchema>;
 export type Proposal = Report["proposals"][number];
 
 /** JSON Schema strict équivalent, pour la définition de l'outil côté API Claude. */
-const str = { type: "string" } as const;
+export const str = { type: "string" } as const;
 const num = { type: "number" } as const;
 const numOrNull = { type: ["number", "null"] } as const;
 const strOrNull = { type: ["string", "null"] } as const;
-function obj(properties: Record<string, unknown>) {
+export function obj(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
-function arr(items: unknown) {
+export function arr(items: unknown) {
   return { type: "array", items };
 }
 

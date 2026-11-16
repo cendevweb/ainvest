@@ -23,4 +23,7 @@ export const keys = {
   sessionIndex: "sessions:index",
   session: (id: string) => `session:${id}`,
   runLock: "session:lock",
+  brief: (day: string) => `brief:${day}`,
+  briefLatest: "brief:latest",
+  budget: (month: string) => `budget:${month}`,
 };

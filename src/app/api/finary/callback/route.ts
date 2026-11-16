@@ -1,5 +1,5 @@
 import { isLoggedIn } from "@/lib/auth";
-import { completeAuthorization } from "@/lib/finary-oauth";
+import { ALLOWLIST_HELP, completeAuthorization, resetClient } from "@/lib/finary-oauth";
 
 export async function GET(req: Request) {
   if (!(await isLoggedIn())) return Response.redirect(new URL("/login", req.url), 303);
@@ -7,8 +7,16 @@ export async function GET(req: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const denied = url.searchParams.get("error");
+  if (denied === "invalid_client" || denied === "unauthorized_client") {
+    await resetClient();
+    const msg = encodeURIComponent(`Finary ne reconnaît pas ce client (${denied}). ${ALLOWLIST_HELP}`);
+    return Response.redirect(new URL(`/parametres?erreur=${msg}`, req.url), 303);
+  }
   if (denied || !code || !state) {
-    const msg = encodeURIComponent(denied ? `Finary a refusé l'accès (${denied}).` : "Réponse Finary incomplète.");
+    const detail = url.searchParams.get("error_description");
+    const msg = encodeURIComponent(
+      denied ? `Finary a refusé l'accès (${denied}${detail ? ` : ${detail}` : ""}).` : "Réponse Finary incomplète.",
+    );
     return Response.redirect(new URL(`/parametres?erreur=${msg}`, req.url), 303);
   }
   try {

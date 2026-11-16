@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
 import { finaryStatus, redirectUri } from "@/lib/finary-oauth";
-import { model } from "@/lib/env";
+import { connectorUrl, model } from "@/lib/env";
 import { Shell } from "@/components/Shell";
 import { dateFr } from "@/lib/format";
 
@@ -11,6 +11,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
   if (!(await isLoggedIn())) redirect("/login");
   const { erreur, finary: finaryParam } = await searchParams;
   const finary = await finaryStatus();
+  const connector = connectorUrl();
   return (
     <Shell finaryConnected={finary.connected}>
       <div className="page-head">
@@ -39,10 +40,24 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           ) : (
             <>
               <p style={{ marginTop: 0 }}>Tu vas être redirigé vers l&apos;écran d&apos;autorisation Finary. Accorde l&apos;accès en lecture au patrimoine ; les autres droits sont facultatifs.</p>
-              <a className="btn primary" href="/api/finary/connect">Connecter Finary</a>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a className="btn primary" href="/api/finary/connect">Connecter Finary</a>
+                <form action="/api/finary/disconnect" method="post"><button className="btn" type="submit">Réinitialiser le client OAuth</button></form>
+              </div>
             </>
           )}
           <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>URL de retour OAuth : <code>{redirectUri()}</code>. Tu peux révoquer l&apos;accès à tout moment dans Finary, rubrique Sécurité.</p>
+        </div>
+        <div className="panel">
+          <h2>Connecteur AInvest pour ton Claude</h2>
+          {connector ? (
+            <>
+              <p style={{ marginTop: 0 }}>Ajoute cette URL comme connecteur, à côté de Finary, dans Claude Code ou sur claude.ai. Elle contient un secret : ne la partage pas.</p>
+              <pre className="code-block"><code>claude mcp add --transport http ainvest {connector}</code></pre>
+            </>
+          ) : (
+            <p style={{ marginTop: 0 }}>Définis <code>INGEST_TOKEN</code> dans les variables Vercel (<code>openssl rand -base64 32 | tr &apos;+/&apos; &apos;-_&apos; | tr -d &apos;=&apos;</code>) puis redéploie pour obtenir l&apos;URL du connecteur.</p>
+          )}
         </div>
         <div className="panel">
           <h2>Claude</h2>

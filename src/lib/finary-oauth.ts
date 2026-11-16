@@ -120,28 +120,52 @@ async function discoverAuthServer(issuer: string): Promise<AuthServer> {
   throw new Error(`Serveur d'autorisation Finary introuvable (${issuer}).`);
 }
 
+/** Message affiché quand Finary refuse un client qu'il ne connaît pas. */
+export const ALLOWLIST_HELP =
+  "Finary n'accepte que les clients OAuth pré-approuvés. Demande à Finary (support ou forum communautaire, fil du MCP) " +
+  "d'autoriser ton instance avec l'URL de retour affichée dans Paramètres, puis renseigne le client_id fourni dans la variable FINARY_CLIENT_ID.";
+
+async function registerClient(endpoint: string, issuer: string): Promise<StoredClient | null> {
+  const { client_id: _ignored, ...meta } = clientMetadata();
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(meta),
+  }).catch(() => null);
+  if (!res) return null;
+  if (res.status === 401 || res.status === 403) throw new Error(`Enregistrement refusé par Finary (${res.status}). ${ALLOWLIST_HELP}`);
+  if (!res.ok) return null;
+  const body = z.object({ client_id: z.string() }).safeParse(await res.json().catch(() => null));
+  return body.success ? { client_id: body.data.client_id, issuer, mode: "dcr" } : null;
+}
+
+/*
+ * Ordre de préférence :
+ * 1. FINARY_CLIENT_ID, un client pré-approuvé par Finary (jamais mis en cache) ;
+ * 2. un client déjà enregistré pour ce serveur ;
+ * 3. l'enregistrement dynamique (RFC 7591) ;
+ * 4. le document de métadonnées client, seulement s'il est annoncé.
+ */
 async function ensureClient(as: AuthServer): Promise<StoredClient> {
+  const configured = process.env.FINARY_CLIENT_ID?.trim();
+  if (configured) return { client_id: configured, issuer: as.issuer, mode: "dcr" };
+
   const existing = StoredClient.safeParse(await redis().get(keys.finaryClient));
   if (existing.success && existing.data.issuer === as.issuer) return existing.data;
 
-  let client: StoredClient;
-  if (as.client_id_metadata_document_supported) {
+  let client: StoredClient | null = null;
+  if (as.registration_endpoint) client = await registerClient(as.registration_endpoint, as.issuer);
+  if (!client && as.client_id_metadata_document_supported) {
     client = { client_id: clientMetadataUrl(), issuer: as.issuer, mode: "cimd" };
-  } else if (as.registration_endpoint) {
-    const { client_id: _ignored, ...meta } = clientMetadata();
-    const res = await fetch(as.registration_endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify(meta),
-    });
-    if (!res.ok) throw new Error(`Enregistrement du client refusé par Finary (${res.status}).`);
-    const body = z.object({ client_id: z.string() }).parse(await res.json());
-    client = { client_id: body.client_id, issuer: as.issuer, mode: "dcr" };
-  } else {
-    throw new Error("Finary ne propose ni document de métadonnées client ni enregistrement dynamique.");
   }
+  if (!client) throw new Error(`Impossible d'identifier l'instance auprès de Finary. ${ALLOWLIST_HELP}`);
   await redis().set(keys.finaryClient, client);
   return client;
+}
+
+/** Oublie le client enregistré, pour repartir de zéro à la prochaine connexion. */
+export async function resetClient(): Promise<void> {
+  await redis().del(keys.finaryClient);
 }
 
 function pkce() {
@@ -251,5 +275,5 @@ export async function finaryStatus(): Promise<{ connected: boolean; connectedAt?
 }
 
 export async function disconnectFinary(): Promise<void> {
-  await redis().del(keys.finaryTokens);
+  await redis().del(keys.finaryTokens, keys.finaryClient);
 }

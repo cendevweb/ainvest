@@ -2,7 +2,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function RunButton({ label = "Lancer une séance", className = "btn primary" }: { label?: string; className?: string }) {
+export function RunButton({
+  label = "Lancer une séance",
+  className = "btn primary",
+  endpoint = "/api/session/run",
+}: {
+  label?: string;
+  className?: string;
+  endpoint?: string;
+}) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -19,7 +27,7 @@ export function RunButton({ label = "Lancer une séance", className = "btn prima
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/session/run", { method: "POST" });
+      const res = await fetch(endpoint, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.ok) setError(body.error ?? `Erreur ${res.status}`);
     } catch {
