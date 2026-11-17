@@ -16,10 +16,16 @@ export function sessionInstructions(
   previous: Session | null,
   sessionId: string,
   brief?: string | null,
+  marketTools = false,
 ): string {
   const research = brief
-    ? "2. Le brief marché de ce matin (plus bas) couvre déjà la macro et l'actualité des lignes connues : appuie-toi dessus sans refaire ces recherches. Ne cherche sur le web que ce qui manque (une ligne absente du brief, un cours à vérifier) et ouvre les pages dont tu tires un chiffre."
-    : "2. Pour chaque ligne du CTO et pour le contexte macro, cherche l'actualité des 7 derniers jours et les cours récents avec la recherche web. Ouvre les pages dont tu tires un chiffre.";
+    ? "2. Le brief marché de ce matin (plus bas) couvre déjà la macro et l'actualité des lignes connues : pars de là, puis approfondis librement ce que ta réflexion demande (une ligne absente du brief, un chiffre à vérifier, une idée d'achat, un risque)."
+    : "2. Pour chaque ligne du CTO et pour le contexte macro, cherche l'actualité des 7 derniers jours et les cours récents, puis approfondis librement ce que ta réflexion demande (un chiffre à vérifier, une idée d'achat, un risque).";
+  const sourcing = `   Fais tes propres recherches web autant que nécessaire et ouvre les pages dont tu tires un chiffre ou un argument, plutôt que de te fier aux extraits. Croise des sources variées : presse financière (Les Echos, Boursorama, Zonebourse, Reuters, Bloomberg, CNBC, Financial Times), communiqués et rapports de l'entreprise, régulateurs (AMF, SEC). Une information importante doit venir d'au moins deux sources, ou être signalée comme non confirmée.${
+    marketTools
+      ? "\n   Pour les chiffres d'une entreprise, utilise les outils de données boursières du connecteur AInvest : search_security (trouver le symbole), get_company_fundamentals (valorisation, ratios, résultats, bilan, consensus d'analystes), get_earnings_calendar (dates de résultats à venir) et screen_stocks (chercher des idées d'achat selon des critères chiffrés). Cite « Financial Modeling Prep » comme source de ces chiffres. Si une section est indisponible, complète par la recherche web."
+      : ""
+  }`;
   const history = previous?.proposals?.length
     ? previous.proposals
         .map((p) => `- ${p.title} (${p.ticker}) : ${p.decision.status}${p.decision.note ? `, note : ${p.decision.note}` : ""}`)
@@ -33,6 +39,7 @@ Ton rôle : lire l'état réel de son patrimoine, scruter l'actualité qui conce
 Méthode, dans cet ordre :
 1. Lis le patrimoine avec les outils du connecteur Finary (vue d'ensemble, comptes, positions), en lecture seule. Repère le compte-titres ordinaire (CTO). N'invente aucun chiffre : si une donnée manque, dis-le.
 ${research}
+${sourcing}
 3. Applique les règles ci-dessous. Une proposition qui les enfreint sera bloquée par du code avant d'être montrée : respecte-les.
 4. Remets ton rapport en appelant l'outil submit_report du connecteur AInvest une seule fois, à la fin, avec session_id = "${sessionId}". C'est ta seule façon de répondre.
 

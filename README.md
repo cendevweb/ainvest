@@ -32,6 +32,7 @@ L'URL Vercel étant publique, l'accès à l'app est protégé par un mot de pass
    - `APP_SECRET` : une valeur générée avec `openssl rand -base64 32`.
    - `CRON_SECRET` : une longue valeur aléatoire ; Vercel l'envoie à la tâche planifiée.
    - `APP_URL` : l'URL de ton instance, par exemple `https://mon-ainvest.vercel.app`.
+   - `FMP_API_KEY` (facultatif, recommandé) : clé [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). Elle donne à ton Claude, pendant la séance, un screener et les chiffres des entreprises (ratios, résultats, bilan, consensus d'analystes, agenda des résultats). Ces outils ne sont pas dans l'interface : seul Claude s'en sert, via le connecteur AInvest.
 4. **Déploie**, ouvre ton URL et entre ton mot de passe.
 5. **Mets en place la routine Claude** : ajoute les connecteurs Finary et AInvest sur claude.ai puis crée la tâche planifiée, en suivant [docs/routine-claude.md](docs/routine-claude.md).
 
@@ -41,7 +42,7 @@ Finary n'ouvre son serveur MCP qu'aux clients qu'il a approuvés, dont Claude. L
 
 1. Claude appelle `get_session_context` : tes règles, tes décisions de la veille, la méthode.
 2. Il lit ton patrimoine avec le connecteur Finary (vue d'ensemble, comptes, positions) et repère ton CTO.
-3. Il cherche l'actualité des 7 derniers jours sur chaque ligne et le contexte macro.
+3. Il cherche l'actualité des 7 derniers jours sur chaque ligne et le contexte macro, ouvre les pages et croise les sources. Avec `FMP_API_KEY`, il consulte aussi les fondamentaux chiffrés des entreprises et peut lancer un screener pour trouver des idées (outils `search_security`, `get_company_fundamentals`, `screen_stocks`, `get_earnings_calendar` du connecteur AInvest).
 4. Il dépose un rapport structuré avec `submit_report` : instantané du CTO, synthèse, actualités, propositions argumentées et sources.
 5. **Du code, pas le modèle**, vérifie chaque proposition contre tes règles (poids max par ligne et par secteur, liquidités minimum, montant max par ordre, nombre de propositions). Les ventes sont simulées avant les achats. Une proposition qui enfreint une règle est affichée comme bloquée.
 6. À ta prochaine connexion, une notification dans l'app t'indique les propositions en attente.
