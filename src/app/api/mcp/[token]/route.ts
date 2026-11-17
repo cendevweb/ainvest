@@ -100,12 +100,21 @@ function argString(args: unknown, key: string): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
-/** Séance « en cours » à utiliser : celle demandée si elle tourne encore, sinon une nouvelle. */
-async function openSession(requested: string | null): Promise<Session> {
+/** Séance en cours à reprendre : celle demandée, sinon la dernière si elle tourne encore. */
+async function runningSession(requested: string | null): Promise<Session | null> {
   if (requested && SESSION_ID.test(requested)) {
     const s = await getSession(requested);
     if (s && s.status === "running" && !isStale(s)) return s;
   }
+  // Sans identifiant (consigne de routine ancienne), on reprend la séance que l'app vient de lancer.
+  const last = await latestSession();
+  return last && last.status === "running" && !isStale(last) ? last : null;
+}
+
+/** Séance « en cours » à utiliser : celle demandée ou en cours, sinon une nouvelle. */
+async function openSession(requested: string | null): Promise<Session> {
+  const existing = await runningSession(requested);
+  if (existing) return existing;
   const now = Date.now();
   const session: Session = {
     id: `${new Date(now).toISOString().slice(0, 10)}-${randomToken(4)}`,
@@ -172,6 +181,7 @@ async function submitReport(args: unknown) {
   }
   const rules = await getRules();
   let session = requested && SESSION_ID.test(requested) ? await getSession(requested) : null;
+  if (!session) session = await runningSession(null);
   if (!session || session.status === "done") {
     const now = Date.now();
     session = {
