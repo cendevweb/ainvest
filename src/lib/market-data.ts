@@ -10,6 +10,7 @@ import {
   pick,
   screenerParams,
 } from "./market-query";
+import { normalizeBars, technicalSummary } from "./indicators";
 
 /*
  * Données boursières pour ton Claude pendant la séance (outils du connecteur AInvest) :
@@ -127,5 +128,44 @@ export async function earningsCalendar(args: { from?: string; to?: string; symbo
       const rows = Array.isArray(d) ? d : [];
       return (wanted.size ? rows.filter((x) => wanted.has(String((x as { symbol?: string }).symbol).toUpperCase())) : rows).slice(0, 80);
     }),
+  };
+}
+
+/** Historique de cours et lecture technique : moyennes mobiles, RSI, ATR, supports et résistances, bougies hebdo. */
+export async function priceHistory(args: { symbol: string; years?: number }) {
+  const symbol = args.symbol.trim().toUpperCase();
+  const years = Math.min(Math.max(Math.trunc(args.years ?? 2), 1), 5);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const to = day(new Date());
+  const from = day(new Date(Date.now() - years * 365.25 * 86400000));
+  const r = await fmp("historical-price-eod/full", { symbol, from, to });
+  if (!r.ok) return { symbol, indisponible: r.error };
+  const rows = Array.isArray(r.data) ? r.data : ((r.data as { historical?: unknown[] })?.historical ?? []);
+  return {
+    symbol,
+    source: "Financial Modeling Prep, cours de clôture quotidiens dans la devise de cotation",
+    periode: { du: from, au: to },
+    ...technicalSummary(normalizeBars(rows)),
+  };
+}
+
+/** Agenda macroéconomique : banques centrales, inflation, emploi, PIB, avec attendu et précédent. */
+export async function economicCalendar(args: { from?: string; to?: string; countries?: string[]; impact?: string }) {
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const from = args.from && iso.test(args.from) ? args.from : day(new Date());
+  const to = args.to && iso.test(args.to) ? args.to : day(new Date(Date.now() + 7 * 86400000));
+  const wanted = new Set((args.countries?.length ? args.countries : ["US", "EU", "FR", "DE", "CN", "JP", "GB"]).map((c) => c.toUpperCase()));
+  const minImpact = args.impact === "low" ? 0 : args.impact === "high" ? 2 : 1;
+  const level = (v: unknown) => (/high/i.test(String(v)) ? 2 : /medium/i.test(String(v)) ? 1 : 0);
+  const r = await fmp("economic-calendar", { from, to });
+  return {
+    du: from,
+    au: to,
+    evenements: unwrap(r, (d) =>
+      (Array.isArray(d) ? d : [])
+        .filter((e) => wanted.has(String((e as { country?: string }).country ?? "").toUpperCase()) && level((e as { impact?: string }).impact) >= minImpact)
+        .slice(0, 80),
+    ),
   };
 }

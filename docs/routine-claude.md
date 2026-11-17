@@ -14,6 +14,7 @@ Routine Claude (cloud), 7 h 20
  ├─ connecteur AInvest → log_step : journal en direct (lectures, recherches, décisions)
  ├─ connecteur AInvest → fondamentaux, screener, agenda des résultats (si FMP_API_KEY)
  ├─ connecteur AInvest → carnet de notes entre séances (dates, raisons, pistes)
+ ├─ skills du dépôt    → .claude/skills : méthode (seance-ainvest), courbe, risque, actualité
  └─ connecteur AInvest → submit_report : l'app revérifie tes règles et affiche les propositions
 ```
 
