@@ -3,6 +3,7 @@ import type { Session } from "@/lib/sessions";
 import type { Rules } from "@/lib/rules";
 import { dateFr, duration, eur, pct, signedEur } from "@/lib/format";
 import { ProposalCard } from "./ProposalCard";
+import { LaunchSessionButton } from "./LaunchSessionButton";
 import { AllocationDonut } from "./AllocationDonut";
 
 const KIND_ICON: Record<string, string> = { finary: "F", web_search: "W", web_fetch: "P", report: "✓", other: "·" };
@@ -17,6 +18,7 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
       <div className="panel empty">
         <h2>{session.status === "running" ? "Séance en cours…" : "La séance a échoué"}</h2>
         <p>{session.status === "running" ? "Claude lit ton patrimoine et l'actualité. Recharge la page dans une minute." : session.error}</p>
+        {isLatest && session.status === "error" && <LaunchSessionButton label="Relancer une séance" />}
       </div>
     );
   }
@@ -37,6 +39,11 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
                 : "Rien à faire aujourd'hui"}
           </h1>
           <p>{r.summary}</p>
+          {isLatest && (
+            <div className="actions">
+              <LaunchSessionButton label="Relancer une séance" className="btn secondary" hint={false} />
+            </div>
+          )}
         </div>
         <div className="kpi">
           <div><div className="eyebrow">Patrimoine net</div><div className="v">{eur(r.snapshot.net_worth_eur)}</div></div>

@@ -4,6 +4,7 @@ import { isLoggedIn } from "@/lib/auth";
 import { apiModeAvailable } from "@/lib/env";
 import { latestBrief, parisDay } from "@/lib/brief";
 import { BriefPanel } from "@/components/BriefPanel";
+import { LaunchSessionButton } from "@/components/LaunchSessionButton";
 import { monthlyBudgetUsd, spentThisMonth } from "@/lib/budget";
 import { getRules, hasRunToday, latestSession } from "@/lib/sessions";
 import { Shell } from "@/components/Shell";
@@ -36,15 +37,19 @@ export default async function Home() {
           <h1>Prêt pour la première séance</h1>
           <p>
             Ta routine Claude lit ton patrimoine avec le connecteur Finary, parcourt l&apos;actualité de tes lignes puis dépose ici
-            ses propositions grâce à ta routine Claude. Suis le guide docs/routine-claude.md pour la mettre en place.
+            ses propositions. Tu peux aussi lancer une séance tout de suite.
           </p>
-          <Link className="btn primary" href="/parametres">Configurer le connecteur</Link>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", alignItems: "flex-start" }}>
+            <LaunchSessionButton label="Lancer la première séance" />
+            <Link className="btn" href="/parametres">Configurer le connecteur</Link>
+          </div>
         </div>
       ) : (
         <>
           {!hasRunToday(session) && (
             <div className="banner">
               <span>Pas encore de séance aujourd&apos;hui. Elle arrive dès que ta routine Claude a déposé son rapport.</span>
+              <span style={{ marginLeft: "auto" }}><LaunchSessionButton label="Lancer maintenant" className="btn" hint={false} /></span>
             </div>
           )}
           <SessionView session={session} rules={rules} isLatest />
