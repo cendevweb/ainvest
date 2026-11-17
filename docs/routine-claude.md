@@ -11,6 +11,7 @@ Routine Claude (cloud), 7 h 20
  ├─ connecteur AInvest → get_session_context : règles, décisions de la veille, méthode, brief du matin
  ├─ connecteur Finary  → vue d'ensemble, comptes, positions (lecture seule)
  ├─ recherche web      → seulement ce que le brief ne couvre pas
+ ├─ connecteur AInvest → log_step : journal en direct (lectures, recherches, décisions)
  └─ connecteur AInvest → submit_report : l'app revérifie tes règles et affiche les propositions
 ```
 
@@ -42,14 +43,22 @@ Sur claude.ai/code, crée une tâche planifiée (routine) avec les connecteurs *
 
 ```text
 Lance la séance AInvest du jour.
-1. Appelle get_session_context (connecteur AInvest) et suis exactement ses consignes.
+1. Appelle get_session_context (connecteur AInvest) et suis exactement ses consignes. Si ce message contient une ligne « Identifiant de séance AInvest : … », passe cet identifiant en session_id.
 2. Lis mon patrimoine avec le connecteur Finary, en lecture seule. N'utilise aucun outil Finary qui modifie des données.
 3. Appuie-toi sur le brief marché fourni par get_session_context ; ne cherche sur le web que ce qui manque.
-4. Termine en appelant submit_report (connecteur AInvest) une seule fois. Si le rapport est refusé, corrige-le et renvoie-le.
+4. Journalise tes étapes et décisions majeures avec log_step, comme l'indiquent les consignes.
+5. Termine en appelant submit_report (connecteur AInvest) une seule fois, avec le session_id. Si le rapport est refusé, corrige-le et renvoie-le.
 Ne passe jamais d'ordre.
 ```
 
-Tu peux aussi lancer une séance à la main avec le bouton « Lancer une séance » de l'app : il ouvre claude.ai avec la consigne préremplie. Vérifie que Finary et AInvest sont activés dans la conversation, puis envoie.
+## 4. Lancer une séance depuis l'app
+
+Le bouton « Lancer une séance » démarre cette même routine sans ouvrir claude.ai :
+
+1. Sur claude.ai/code/routines, ouvre la routine AInvest, puis **Ajouter un déclencheur → API → Générer un jeton**. Le jeton ne s'affiche qu'une fois.
+2. Dans Vercel, renseigne `ROUTINE_FIRE_URL` (l'URL du déclencheur, `https://api.anthropic.com/v1/claude_code/routines/trig_…/fire`) et `ROUTINE_FIRE_TOKEN` (le jeton), puis redéploie.
+
+L'app crée la séance, déclenche la routine en lui passant l'identifiant de séance, puis affiche le journal en direct jusqu'au rapport. Le jeton permet seulement de lancer cette routine, et chaque lancement compte dans ton abonnement (30 lancements par heure au plus). Une séance sans rapport au bout de 45 minutes s'affiche comme interrompue.
 
 ## Ce que l'app garantit
 

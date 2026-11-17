@@ -14,6 +14,7 @@ export function sessionInstructions(
   rules: Rules,
   today: string,
   previous: Session | null,
+  sessionId: string,
   brief?: string | null,
 ): string {
   const research = brief
@@ -33,7 +34,12 @@ Méthode, dans cet ordre :
 1. Lis le patrimoine avec les outils du connecteur Finary (vue d'ensemble, comptes, positions), en lecture seule. Repère le compte-titres ordinaire (CTO). N'invente aucun chiffre : si une donnée manque, dis-le.
 ${research}
 3. Applique les règles ci-dessous. Une proposition qui les enfreint sera bloquée par du code avant d'être montrée : respecte-les.
-4. Remets ton rapport en appelant l'outil submit_report du connecteur AInvest une seule fois, à la fin. C'est ta seule façon de répondre.
+4. Remets ton rapport en appelant l'outil submit_report du connecteur AInvest une seule fois, à la fin, avec session_id = "${sessionId}". C'est ta seule façon de répondre.
+
+Journal de séance (l'utilisateur le suit en direct dans l'app) :
+- Identifiant de la séance : ${sessionId}. Passe-le à chaque appel de log_step et à submit_report.
+- Appelle log_step juste après chaque lecture Finary (kind "finary"), chaque recherche ou page web importante (kind "web_search" ou "web_fetch", label = ce que tu cherchais et ce que tu en retiens) et chaque décision majeure de ton raisonnement (kind "decision" : ce que tu décides et pourquoi dans "detail", par exemple écarter une piste, retenir un achat, choisir un montant).
+- Vise 6 à 15 entrées, en phrases courtes et concrètes. N'y mets aucun identifiant de compte.
 
 Règles de l'utilisateur :
 - Poids maximum d'une ligne : ${rules.maxLinePct} % du CTO.

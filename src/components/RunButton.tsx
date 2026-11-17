@@ -6,10 +6,12 @@ export function RunButton({
   label,
   className = "btn primary",
   endpoint,
+  busyLabel = "Claude analyse…",
 }: {
   label: string;
   className?: string;
   endpoint: string;
+  busyLabel?: string;
 }) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
@@ -41,7 +43,7 @@ export function RunButton({
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 6 }}>
       <button className={className} onClick={run} disabled={running} type="button">
-        {running ? <><span className="spin" aria-hidden="true" />Claude analyse… {elapsed} s</> : label}
+        {running ? <><span className="spin" aria-hidden="true" />{busyLabel} {elapsed} s</> : label}
       </button>
       {error && <span role="alert" style={{ fontSize: 12.5, color: "var(--loss)" }}>{error}</span>}
     </span>

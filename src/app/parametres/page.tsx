@@ -3,6 +3,7 @@ import { isLoggedIn } from "@/lib/auth";
 import { apiModeAvailable, connectorUrl } from "@/lib/env";
 import { monthlyBudgetUsd, spentThisMonth } from "@/lib/budget";
 import { Shell } from "@/components/Shell";
+import { routineConfigured } from "@/lib/routine";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,20 @@ export default async function Settings() {
           )}
           <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
             La séance quotidienne est une tâche planifiée Claude : voir le guide <code>docs/routine-claude.md</code> du dépôt.
+          </p>
+        </div>
+        <div className="panel">
+          <h2>Lancement depuis l&apos;app</h2>
+          <div className="row">
+            <span>Déclencheur de la routine</span>
+            {routineConfigured() ? <span className="chip ok">Configuré</span> : <span className="chip warn">À configurer</span>}
+          </div>
+          <p style={{ marginBottom: 0 }}>
+            Le bouton « Lancer une séance » démarre ta routine Claude sans ouvrir claude.ai. Sur{" "}
+            <a href="https://claude.ai/code/routines" target="_blank" rel="noreferrer noopener">claude.ai/code/routines</a>, ouvre la
+            routine AInvest, ajoute un déclencheur « API » et génère son jeton. Copie l&apos;URL dans <code>ROUTINE_FIRE_URL</code> et le
+            jeton dans <code>ROUTINE_FIRE_TOKEN</code> (variables Vercel), puis redéploie. Le jeton permet seulement de lancer cette
+            routine ; la séance est décomptée de ton abonnement Claude.
           </p>
         </div>
         <div className="panel">
