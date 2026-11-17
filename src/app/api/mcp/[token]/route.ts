@@ -4,7 +4,9 @@ import { sessionInstructions, todayFr } from "@/lib/prompt";
 import { ReportSchema, reportJsonSchema } from "@/lib/schema";
 import { appendTrace, getRules, getSession, isStale, latestSession, listSessions, saveSession, type Session, type TraceKind } from "@/lib/sessions";
 import { eur } from "@/lib/format";
-import { briefAsText, getBrief } from "@/lib/brief";
+import { briefAsText, getBrief, parisDay } from "@/lib/brief";
+import { addNote, allNotes, updateNote } from "@/lib/notes";
+import { NOTE_KINDS, filterNotes, noteLine, notesDigest, sortNotes } from "@/lib/notes-core";
 import { companyFundamentals, earningsCalendar, marketDataAvailable, screenStocks, searchSecurity } from "@/lib/market-data";
 
 /*
@@ -77,6 +79,65 @@ const TOOLS = [
       },
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  {
+    name: "list_notes",
+    title: "Lire le carnet de notes",
+    description:
+      "Ton carnet de notes AInvest, conservé d'une séance à l'autre. Les notes ouvertes sont déjà résumées dans get_session_context ; utilise cet outil pour filtrer (par ticker, type, mot-clé) ou relire les notes fermées.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ticker: { type: "string" },
+        kind: { type: "string", enum: [...NOTE_KINDS] },
+        status: { type: "string", enum: ["open", "closed", "all"], description: "open par défaut." },
+        query: { type: "string", description: "Mot-clé cherché dans le titre et le texte." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "add_note",
+    title: "Ajouter une note",
+    description:
+      "Écrit une note pour tes prochaines séances : une date utile (résultats, dividende, réunion de banque centrale), la raison d'une décision ou d'une non-décision, une piste à surveiller avec son seuil, une leçon tirée d'une séance passée. Une note par sujet, courte et datée.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        kind: { type: "string", enum: [...NOTE_KINDS], description: "date, decision, watch (piste), lesson, other." },
+        title: { type: "string", description: "Le sujet en une ligne." },
+        body: { type: "string", description: "Le détail : faits, chiffres, sources, ce qui ferait changer d'avis." },
+        ticker: { type: "string", description: "Ticker concerné, si la note porte sur une ligne." },
+        due: { type: "string", description: "Date utile ou de revue, AAAA-MM-JJ." },
+      },
+      required: ["title"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  {
+    name: "update_note",
+    title: "Mettre à jour une note",
+    description:
+      "Modifie une note du carnet : ajoute un suivi daté (append), change l'échéance, ferme la note quand le sujet est réglé (status closed), ou la supprime si elle est fausse.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Identifiant de la note, ex. n_ab12cd." },
+        append: { type: "string", description: "Suivi ajouté à la fin, préfixé de la date du jour." },
+        title: { type: "string" },
+        body: { type: "string", description: "Remplace tout le texte." },
+        kind: { type: "string", enum: [...NOTE_KINDS] },
+        ticker: { type: "string" },
+        due: { type: "string", description: "AAAA-MM-JJ, ou chaîne vide pour retirer l'échéance." },
+        status: { type: "string", enum: ["open", "closed"] },
+        delete: { type: "boolean", description: "true pour supprimer définitivement." },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
   },
   {
     name: "search_security",
@@ -209,7 +270,7 @@ async function openSession(requested: string | null): Promise<Session> {
 }
 
 async function getContext(args: unknown) {
-  const [rules, previousLatest, brief] = await Promise.all([getRules(), latestSession(), getBrief()]);
+  const [rules, previousLatest, brief, notes] = await Promise.all([getRules(), latestSession(), getBrief(), allNotes().catch(() => null)]);
   const session = await openSession(argString(args, "session_id"));
   // La séance précédente est la dernière séance terminée, pas celle qu'on vient d'ouvrir.
   const previous =
@@ -219,7 +280,9 @@ async function getContext(args: unknown) {
   if (!session.trace.some((t) => t.tool === "get_session_context")) {
     await appendTrace(session.id, { kind: "other", tool: "get_session_context", label: "Consignes et règles lues" });
   }
-  return text(sessionInstructions(rules, todayFr(), previous, session.id, brief ? briefAsText(brief) : null, marketDataAvailable()));
+  return text(
+    sessionInstructions(rules, todayFr(), previous, session.id, brief ? briefAsText(brief) : null, marketDataAvailable(), notes ? notesDigest(notes, parisDay()) : null),
+  );
 }
 
 async function logStep(args: unknown) {
@@ -240,6 +303,26 @@ async function logStep(args: unknown) {
     ...(detail ? { detail: detail.slice(0, 600) } : {}),
   });
   return text("Noté.");
+}
+
+const NOTE_TOOLS = new Set(["list_notes", "add_note", "update_note"]);
+
+async function notesTool(name: string, rawArgs: unknown) {
+  const args = (rawArgs && typeof rawArgs === "object" ? rawArgs : {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  if (name === "list_notes") {
+    const notes = sortNotes(filterNotes(await allNotes(), { ticker: str(args.ticker), kind: str(args.kind), status: str(args.status), query: str(args.query) }));
+    return text(notes.length ? notes.map((n) => noteLine(n, parisDay())).join("\n") : "Aucune note ne correspond.");
+  }
+  if (name === "add_note") {
+    const r = await addNote(args);
+    return r.ok ? text(`Note ajoutée :\n${noteLine(r.note, parisDay())}`) : text(r.error, true);
+  }
+  const id = str(args.id);
+  if (!id) return text("Paramètre id manquant.", true);
+  const r = await updateNote(id, args);
+  if (!r.ok) return text(r.error, true);
+  return text(r.note ? `Note mise à jour :\n${noteLine(r.note, parisDay())}` : `Note ${id} supprimée.`);
 }
 
 async function readSession(args: unknown) {
@@ -326,7 +409,7 @@ async function handle(req: RpcRequest) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "ainvest", title: "AInvest", version: "1.0.0" },
         instructions:
-          "Connecteur de ton instance AInvest. Pour une séance : appelle get_session_context, lis le patrimoine avec le connecteur Finary, cherche l'actualité, appuie-toi sur les outils de données boursières (fondamentaux, screener, agenda des résultats) s'ils sont présents, puis appelle submit_report.",
+          "Connecteur de ton instance AInvest. Pour une séance : appelle get_session_context, lis le patrimoine avec le connecteur Finary, cherche l'actualité, appuie-toi sur les outils de données boursières (fondamentaux, screener, agenda des résultats) s'ils sont présents, tiens ton carnet de notes (add_note, update_note), puis appelle submit_report.",
       });
     }
     case "ping":
@@ -341,6 +424,7 @@ async function handle(req: RpcRequest) {
         if (name === "log_step") return ok(req.id, await logStep(req.params?.arguments));
         if (name === "get_session") return ok(req.id, await readSession(req.params?.arguments));
         if (name === "submit_report") return ok(req.id, await submitReport(req.params?.arguments));
+        if (typeof name === "string" && NOTE_TOOLS.has(name)) return ok(req.id, await notesTool(name, req.params?.arguments));
         if (typeof name === "string" && MARKET_TOOLS.has(name)) return ok(req.id, await marketTool(name, req.params?.arguments));
       } catch (err) {
         return ok(req.id, text(`Erreur côté AInvest : ${err instanceof Error ? err.message : String(err)}`, true));

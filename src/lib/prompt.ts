@@ -17,6 +17,7 @@ export function sessionInstructions(
   sessionId: string,
   brief?: string | null,
   marketTools = false,
+  notes: string | null = null,
 ): string {
   const research = brief
     ? "2. Le brief marché de ce matin (plus bas) couvre déjà la macro et l'actualité des lignes connues : pars de là, puis approfondis librement ce que ta réflexion demande (une ligne absente du brief, un chiffre à vérifier, une idée d'achat, un risque)."
@@ -40,8 +41,12 @@ Méthode, dans cet ordre :
 1. Lis le patrimoine avec les outils du connecteur Finary (vue d'ensemble, comptes, positions), en lecture seule. Repère le compte-titres ordinaire (CTO). N'invente aucun chiffre : si une donnée manque, dis-le.
 ${research}
 ${sourcing}
-3. Applique les règles ci-dessous. Une proposition qui les enfreint sera bloquée par du code avant d'être montrée : respecte-les.
-4. Remets ton rapport en appelant l'outil submit_report du connecteur AInvest une seule fois, à la fin, avec session_id = "${sessionId}". C'est ta seule façon de répondre.
+${
+    notes !== null
+      ? "3. Tiens ton carnet de notes (connecteur AInvest), qui te suit d'une séance à l'autre. Relis les notes ouvertes plus bas avant de décider : échéances arrivées, pistes à revoir, raisons de tes décisions passées. Pendant la séance, ajoute avec add_note les dates utiles à venir (résultats, dividendes, banques centrales), la raison de chaque proposition ou de chaque refus d'agir, et les pistes à surveiller avec le seuil qui te ferait changer d'avis. Avec update_note, complète une note quand le sujet avance et ferme-la quand il est réglé. Tiens compte des décisions de l'utilisateur sur la séance précédente.\n"
+      : ""
+  }${notes !== null ? "4" : "3"}. Applique les règles ci-dessous. Une proposition qui les enfreint sera bloquée par du code avant d'être montrée : respecte-les.
+${notes !== null ? "5" : "4"}. Remets ton rapport en appelant l'outil submit_report du connecteur AInvest une seule fois, à la fin, avec session_id = "${sessionId}". C'est ta seule façon de répondre.
 
 Journal de séance (l'utilisateur le suit en direct dans l'app) :
 - Identifiant de la séance : ${sessionId}. Passe-le à chaque appel de log_step et à submit_report.
@@ -68,5 +73,5 @@ Exigences sur les propositions :
 - Seul le CTO est concerné. Les autres comptes servent de contexte (épargne de précaution, exposition globale).
 
 Décisions de l'utilisateur sur la séance précédente (tiens-en compte) :
-${history}${brief ? `\n\nBrief marché de ce matin (préparé automatiquement, sources incluses) :\n${brief}` : ""}`;
+${history}${notes !== null ? `\n\nTon carnet de notes (notes ouvertes, dates à venir en tête) :\n${notes}` : ""}${brief ? `\n\nBrief marché de ce matin (préparé automatiquement, sources incluses) :\n${brief}` : ""}`;
 }

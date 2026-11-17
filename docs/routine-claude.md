@@ -13,6 +13,7 @@ Routine Claude (cloud), 7 h 20
  ├─ recherche web      → recherches libres, pages ouvertes, sources croisées
  ├─ connecteur AInvest → log_step : journal en direct (lectures, recherches, décisions)
  ├─ connecteur AInvest → fondamentaux, screener, agenda des résultats (si FMP_API_KEY)
+ ├─ connecteur AInvest → carnet de notes entre séances (dates, raisons, pistes)
  └─ connecteur AInvest → submit_report : l'app revérifie tes règles et affiche les propositions
 ```
 

@@ -22,4 +22,5 @@ export const keys = {
   brief: (day: string) => `brief:${day}`,
   briefLatest: "brief:latest",
   budget: (month: string) => `budget:${month}`,
+  notes: "notes",
 };
