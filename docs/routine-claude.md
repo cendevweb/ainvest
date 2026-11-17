@@ -49,7 +49,7 @@ Lance la séance AInvest du jour.
 Ne passe jamais d'ordre.
 ```
 
-Tu peux aussi lancer une séance à la main : colle la même consigne dans une conversation claude.ai où les deux connecteurs sont actifs.
+Tu peux aussi lancer une séance à la main avec le bouton « Lancer une séance » de l'app : il ouvre claude.ai avec la consigne préremplie. Vérifie que Finary et AInvest sont activés dans la conversation, puis envoie.
 
 ## Ce que l'app garantit
 

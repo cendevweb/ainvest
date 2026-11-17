@@ -47,6 +47,8 @@ Finary n'ouvre son serveur MCP qu'aux clients qu'il a approuvés, dont Claude. L
 
 **Brief marché avec ta clé API.** La tâche planifiée Vercel tourne à 5 h 15 UTC du lundi au vendredi (6 h 15 en hiver, 7 h 15 en été à Paris). Avec `ANTHROPIC_API_KEY`, elle prépare le brief du matin : macro, marchés, agenda et actualité de chaque ligne connue, avec sources. Ta routine Claude le récupère dans `get_session_context` et ne fait plus que lire Finary et décider. Le brief s'affiche aussi sur le tableau de bord, avec la dépense du mois. Compte environ 0,50 à 1 $ par brief avec Sonnet, soit 10 à 25 $ par mois.
 
+**Lancer une séance à la main.** Le bouton « Lancer une séance » ouvre claude.ai avec la consigne de séance préremplie. Elle tourne sur ton abonnement avec tes connecteurs Finary et AInvest, comme la routine du matin, et le rapport arrive dans l'app.
+
 **Approfondir une proposition sur ton abonnement.** Le bouton « Creuser avec Claude » de chaque proposition ouvre claude.ai avec une consigne préremplie. Ton Claude relit la séance avec l'outil `get_session` du connecteur AInvest, vérifie ta position avec Finary et approfondit. Rien n'est facturé sur la clé API.
 
 ## Limites connues
