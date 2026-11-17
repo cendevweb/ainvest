@@ -43,9 +43,10 @@ Finary n'ouvre son serveur MCP qu'aux clients qu'il a approuvés, dont Claude. L
 1. Claude appelle `get_session_context` : tes règles, tes décisions de la veille, la méthode.
 2. Il lit ton patrimoine avec le connecteur Finary (vue d'ensemble, comptes, positions) et repère ton CTO.
 3. Il cherche l'actualité des 7 derniers jours sur chaque ligne et le contexte macro, ouvre les pages et croise les sources. Avec `FMP_API_KEY`, il consulte aussi les fondamentaux chiffrés des entreprises et peut lancer un screener pour trouver des idées (outils `search_security`, `get_company_fundamentals`, `screen_stocks`, `get_earnings_calendar` du connecteur AInvest).
-4. Il dépose un rapport structuré avec `submit_report` : instantané du CTO, synthèse, actualités, propositions argumentées et sources.
-5. **Du code, pas le modèle**, vérifie chaque proposition contre tes règles (poids max par ligne et par secteur, liquidités minimum, montant max par ordre, nombre de propositions). Les ventes sont simulées avant les achats. Une proposition qui enfreint une règle est affichée comme bloquée.
-6. À ta prochaine connexion, une notification dans l'app t'indique les propositions en attente.
+4. Il relit et tient son **carnet de notes** d'une séance à l'autre (outils `list_notes`, `add_note`, `update_note`, stockés dans ta base Redis) : dates utiles à venir, raisons de ses décisions, pistes à surveiller avec leur seuil. Les notes ouvertes lui sont données dès `get_session_context`.
+5. Il dépose un rapport structuré avec `submit_report` : instantané du CTO, synthèse, actualités, propositions argumentées et sources.
+6. **Du code, pas le modèle**, vérifie chaque proposition contre tes règles (poids max par ligne et par secteur, liquidités minimum, montant max par ordre, nombre de propositions). Les ventes sont simulées avant les achats. Une proposition qui enfreint une règle est affichée comme bloquée.
+7. À ta prochaine connexion, une notification dans l'app t'indique les propositions en attente.
 
 **Brief marché avec ta clé API.** La tâche planifiée Vercel tourne à 5 h 15 UTC du lundi au vendredi (6 h 15 en hiver, 7 h 15 en été à Paris). Avec `ANTHROPIC_API_KEY`, elle prépare le brief du matin : macro, marchés, agenda et actualité de chaque ligne connue, avec sources. Ta routine Claude le récupère dans `get_session_context` et ne fait plus que lire Finary et décider. Le brief s'affiche aussi sur le tableau de bord, avec la dépense du mois. Compte environ 0,50 à 1 $ par brief avec Sonnet, soit 10 à 25 $ par mois.
 
