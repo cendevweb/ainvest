@@ -5,6 +5,7 @@ import { ReportSchema, reportJsonSchema } from "@/lib/schema";
 import { appendTrace, getRules, getSession, isStale, latestSession, listSessions, saveSession, type Session, type TraceKind } from "@/lib/sessions";
 import { eur } from "@/lib/format";
 import { briefAsText, getBrief } from "@/lib/brief";
+import { companyFundamentals, earningsCalendar, marketDataAvailable, screenStocks, searchSecurity } from "@/lib/market-data";
 
 /*
  * Serveur MCP d'AInvest (transport HTTP « streamable », mode sans état, réponses JSON).
@@ -77,7 +78,85 @@ const TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   },
+  {
+    name: "search_security",
+    title: "Trouver un titre",
+    description:
+      "Données boursières (Financial Modeling Prep). Trouve le symbole boursier d'une action ou d'un ETF à partir de son nom, d'un ticker ou d'un ISIN, avant d'appeler get_company_fundamentals.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Nom ou ticker, ex. « LVMH » ou « MC »." },
+        isin: { type: "string", description: "ISIN, ex. FR0000121014." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  },
+  {
+    name: "get_company_fundamentals",
+    title: "Fondamentaux d'une entreprise",
+    description:
+      "Données boursières (Financial Modeling Prep). Fiche chiffrée d'une entreprise : profil, cours, valorisation et ratios sur 12 mois glissants (PER, marges, ROE, endettement, rendement), compte de résultat, bilan, flux de trésorerie, estimations et objectif de cours des analystes, notes récentes. À utiliser pour juger une ligne détenue ou une idée d'achat. Les sections absentes de l'offre FMP sont signalées « indisponible ».",
+    inputSchema: {
+      type: "object",
+      properties: {
+        symbol: { type: "string", description: "Symbole FMP, ex. AAPL, MC.PA, ASML.AS (voir search_security)." },
+        period: { type: "string", enum: ["annual", "quarter"], description: "États financiers annuels (défaut) ou trimestriels." },
+        limit: { type: "integer", minimum: 1, maximum: 8, description: "Nombre d'exercices ou trimestres, 4 par défaut." },
+      },
+      required: ["symbol"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  },
+  {
+    name: "screen_stocks",
+    title: "Screener d'actions",
+    description:
+      "Données boursières (Financial Modeling Prep). Filtre les actions et ETF selon des critères chiffrés (capitalisation, prix, bêta, dividende, secteur, pays, place de cotation). Sert à trouver des idées d'achat cohérentes avec les règles et le portefeuille, à approfondir ensuite avec get_company_fundamentals.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        marketCapMoreThan: { type: "number", description: "Capitalisation minimum, en dollars." },
+        marketCapLowerThan: { type: "number" },
+        priceMoreThan: { type: "number" },
+        priceLowerThan: { type: "number" },
+        betaMoreThan: { type: "number" },
+        betaLowerThan: { type: "number" },
+        volumeMoreThan: { type: "number" },
+        dividendMoreThan: { type: "number", description: "Dividende annuel par action minimum." },
+        sector: { type: "string", description: "Secteur en anglais, ex. Technology, Healthcare, Energy." },
+        industry: { type: "string" },
+        country: { type: "string", description: "Code pays, ex. FR, US, DE." },
+        exchange: { type: "string", description: "Place, ex. EURONEXT, NASDAQ, NYSE, XETRA." },
+        isEtf: { type: "boolean" },
+        isFund: { type: "boolean" },
+        limit: { type: "integer", minimum: 1, maximum: 50, description: "25 par défaut." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  },
+  {
+    name: "get_earnings_calendar",
+    title: "Agenda des résultats",
+    description:
+      "Données boursières (Financial Modeling Prep). Dates de publication des résultats, avec BPA et chiffre d'affaires attendus puis publiés. Filtre possible sur des symboles. Par défaut, les 14 prochains jours.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "AAAA-MM-JJ" },
+        to: { type: "string", description: "AAAA-MM-JJ" },
+        symbols: { type: "array", items: { type: "string" }, description: "Symboles à garder, ex. [\"NVDA\", \"TSLA\"]." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  },
 ];
+
+const MARKET_TOOLS = new Set(["search_security", "get_company_fundamentals", "screen_stocks", "get_earnings_calendar"]);
 
 type RpcRequest = { jsonrpc: "2.0"; id?: string | number | null; method: string; params?: Record<string, unknown> };
 
@@ -140,7 +219,7 @@ async function getContext(args: unknown) {
   if (!session.trace.some((t) => t.tool === "get_session_context")) {
     await appendTrace(session.id, { kind: "other", tool: "get_session_context", label: "Consignes et règles lues" });
   }
-  return text(sessionInstructions(rules, todayFr(), previous, session.id, brief ? briefAsText(brief) : null));
+  return text(sessionInstructions(rules, todayFr(), previous, session.id, brief ? briefAsText(brief) : null, marketDataAvailable()));
 }
 
 async function logStep(args: unknown) {
@@ -218,6 +297,26 @@ async function submitReport(args: unknown) {
   );
 }
 
+async function marketTool(name: string, rawArgs: unknown) {
+  if (!marketDataAvailable()) return text("Données boursières non configurées : FMP_API_KEY manque dans Vercel. Utilise la recherche web.", true);
+  const args = (rawArgs && typeof rawArgs === "object" ? rawArgs : {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  let result: unknown;
+  if (name === "search_security") result = await searchSecurity({ query: str(args.query), isin: str(args.isin) });
+  else if (name === "get_company_fundamentals") {
+    const symbol = str(args.symbol);
+    if (!symbol) return text("Paramètre symbol manquant.", true);
+    result = await companyFundamentals({ symbol, period: args.period === "quarter" ? "quarter" : "annual", limit: typeof args.limit === "number" ? args.limit : undefined });
+  } else if (name === "screen_stocks") result = await screenStocks(args);
+  else
+    result = await earningsCalendar({
+      from: str(args.from),
+      to: str(args.to),
+      symbols: Array.isArray(args.symbols) ? args.symbols.filter((s): s is string => typeof s === "string").slice(0, 40) : undefined,
+    });
+  return text(JSON.stringify(result));
+}
+
 async function handle(req: RpcRequest) {
   switch (req.method) {
     case "initialize": {
@@ -227,13 +326,14 @@ async function handle(req: RpcRequest) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "ainvest", title: "AInvest", version: "1.0.0" },
         instructions:
-          "Connecteur de ton instance AInvest. Pour une séance : appelle get_session_context, lis le patrimoine avec le connecteur Finary, cherche l'actualité, puis appelle submit_report.",
+          "Connecteur de ton instance AInvest. Pour une séance : appelle get_session_context, lis le patrimoine avec le connecteur Finary, cherche l'actualité, appuie-toi sur les outils de données boursières (fondamentaux, screener, agenda des résultats) s'ils sont présents, puis appelle submit_report.",
       });
     }
     case "ping":
       return ok(req.id, {});
     case "tools/list":
-      return ok(req.id, { tools: TOOLS });
+      // Les outils de données n'apparaissent que si la clé FMP est configurée.
+      return ok(req.id, { tools: marketDataAvailable() ? TOOLS : TOOLS.filter((t) => !MARKET_TOOLS.has(t.name)) });
     case "tools/call": {
       const name = req.params?.name;
       try {
@@ -241,6 +341,7 @@ async function handle(req: RpcRequest) {
         if (name === "log_step") return ok(req.id, await logStep(req.params?.arguments));
         if (name === "get_session") return ok(req.id, await readSession(req.params?.arguments));
         if (name === "submit_report") return ok(req.id, await submitReport(req.params?.arguments));
+        if (typeof name === "string" && MARKET_TOOLS.has(name)) return ok(req.id, await marketTool(name, req.params?.arguments));
       } catch (err) {
         return ok(req.id, text(`Erreur côté AInvest : ${err instanceof Error ? err.message : String(err)}`, true));
       }

@@ -10,8 +10,9 @@ Vercel, 6 h 15 (7 h 15 en été) → brief marché avec ta clé API
 Routine Claude (cloud), 7 h 20
  ├─ connecteur AInvest → get_session_context : règles, décisions de la veille, méthode, brief du matin
  ├─ connecteur Finary  → vue d'ensemble, comptes, positions (lecture seule)
- ├─ recherche web      → seulement ce que le brief ne couvre pas
+ ├─ recherche web      → recherches libres, pages ouvertes, sources croisées
  ├─ connecteur AInvest → log_step : journal en direct (lectures, recherches, décisions)
+ ├─ connecteur AInvest → fondamentaux, screener, agenda des résultats (si FMP_API_KEY)
  └─ connecteur AInvest → submit_report : l'app revérifie tes règles et affiche les propositions
 ```
 
@@ -34,7 +35,11 @@ Dans claude.ai, **Paramètres → Connecteurs → Ajouter un connecteur personna
 
 Tu peux vérifier dans une conversation : « Donne-moi la répartition de mon patrimoine par classe d'actifs ».
 
-## 3. Créer la routine
+## 3. Ouvrir le réseau de l'environnement cloud
+
+La routine tourne dans un environnement cloud (claude.ai/code, réglages de l'environnement). En réseau « limité », elle peut chercher sur le web mais **pas ouvrir les pages** trouvées : elle ne travaille alors que sur des extraits. Mets l'accès réseau de l'environnement sur **complet** (ou ajoute les sites d'actualité que tu veux autoriser) pour qu'elle lise les articles, communiqués et rapports.
+
+## 4. Créer la routine
 
 Sur claude.ai/code, crée une tâche planifiée (routine) avec les connecteurs **Finary** et **AInvest** activés et :
 
@@ -45,13 +50,13 @@ Sur claude.ai/code, crée une tâche planifiée (routine) avec les connecteurs *
 Lance la séance AInvest du jour.
 1. Appelle get_session_context (connecteur AInvest) et suis exactement ses consignes. Si ce message contient une ligne « Identifiant de séance AInvest : … », passe cet identifiant en session_id.
 2. Lis mon patrimoine avec le connecteur Finary, en lecture seule. N'utilise aucun outil Finary qui modifie des données.
-3. Appuie-toi sur le brief marché fourni par get_session_context ; ne cherche sur le web que ce qui manque.
+3. Pars du brief marché fourni par get_session_context, puis fais tes propres recherches : ouvre les pages, croise les sources, et utilise les outils de données boursières du connecteur AInvest pour les chiffres des entreprises.
 4. Journalise tes étapes et décisions majeures avec log_step, comme l'indiquent les consignes.
 5. Termine en appelant submit_report (connecteur AInvest) une seule fois, avec le session_id. Si le rapport est refusé, corrige-le et renvoie-le.
 Ne passe jamais d'ordre.
 ```
 
-## 4. Lancer une séance depuis l'app
+## 5. Lancer une séance depuis l'app
 
 Le bouton « Lancer une séance » démarre cette même routine sans ouvrir claude.ai :
 
