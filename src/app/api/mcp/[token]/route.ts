@@ -7,7 +7,7 @@ import { eur } from "@/lib/format";
 import { briefAsText, getBrief, parisDay } from "@/lib/brief";
 import { addNote, allNotes, updateNote } from "@/lib/notes";
 import { NOTE_KINDS, filterNotes, noteLine, notesDigest, sortNotes } from "@/lib/notes-core";
-import { companyFundamentals, earningsCalendar, marketDataAvailable, screenStocks, searchSecurity } from "@/lib/market-data";
+import { companyFundamentals, earningsCalendar, economicCalendar, marketDataAvailable, priceHistory, screenStocks, searchSecurity } from "@/lib/market-data";
 
 /*
  * Serveur MCP d'AInvest (transport HTTP « streamable », mode sans état, réponses JSON).
@@ -215,9 +215,42 @@ const TOOLS = [
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   },
+  {
+    name: "get_price_history",
+    title: "Lire la courbe d'un titre",
+    description:
+      "Données boursières (Financial Modeling Prep). Historique de cours analysé : performance sur 1, 3, 6 et 12 mois, plus haut et plus bas sur 52 semaines, moyennes mobiles quotidiennes (50 et 200 jours) et hebdomadaires (10, 20 et 40 semaines), RSI, ATR (volatilité, utile pour placer un stop), volume, supports et résistances détectés, et les 26 dernières bougies hebdomadaires. Remplace la lecture d'un graphique.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        symbol: { type: "string", description: "Symbole FMP, ex. AAPL, MC.PA (voir search_security)." },
+        years: { type: "integer", minimum: 1, maximum: 5, description: "Profondeur d'historique, 2 ans par défaut." },
+      },
+      required: ["symbol"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  },
+  {
+    name: "get_economic_calendar",
+    title: "Agenda macroéconomique",
+    description:
+      "Données boursières (Financial Modeling Prep). Publications économiques à venir (banques centrales, inflation, emploi, PIB…) avec valeur attendue et précédente. Par défaut, les 7 prochains jours, impact moyen ou fort, États-Unis, zone euro, France, Allemagne, Chine, Japon et Royaume-Uni.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "AAAA-MM-JJ" },
+        to: { type: "string", description: "AAAA-MM-JJ" },
+        countries: { type: "array", items: { type: "string" }, description: "Codes pays, ex. [\"US\", \"EU\"]." },
+        impact: { type: "string", enum: ["low", "medium", "high"], description: "Impact minimum, medium par défaut." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  },
 ];
 
-const MARKET_TOOLS = new Set(["search_security", "get_company_fundamentals", "screen_stocks", "get_earnings_calendar"]);
+const MARKET_TOOLS = new Set(["search_security", "get_company_fundamentals", "screen_stocks", "get_earnings_calendar", "get_price_history", "get_economic_calendar"]);
 
 type RpcRequest = { jsonrpc: "2.0"; id?: string | number | null; method: string; params?: Record<string, unknown> };
 
@@ -391,6 +424,17 @@ async function marketTool(name: string, rawArgs: unknown) {
     if (!symbol) return text("Paramètre symbol manquant.", true);
     result = await companyFundamentals({ symbol, period: args.period === "quarter" ? "quarter" : "annual", limit: typeof args.limit === "number" ? args.limit : undefined });
   } else if (name === "screen_stocks") result = await screenStocks(args);
+  else if (name === "get_price_history") {
+    const symbol = str(args.symbol);
+    if (!symbol) return text("Paramètre symbol manquant.", true);
+    result = await priceHistory({ symbol, years: typeof args.years === "number" ? args.years : undefined });
+  } else if (name === "get_economic_calendar")
+    result = await economicCalendar({
+      from: str(args.from),
+      to: str(args.to),
+      countries: Array.isArray(args.countries) ? args.countries.filter((s): s is string => typeof s === "string").slice(0, 20) : undefined,
+      impact: str(args.impact),
+    });
   else
     result = await earningsCalendar({
       from: str(args.from),

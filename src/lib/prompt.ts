@@ -24,9 +24,11 @@ export function sessionInstructions(
     : "2. Pour chaque ligne du CTO et pour le contexte macro, cherche l'actualité des 7 derniers jours et les cours récents, puis approfondis librement ce que ta réflexion demande (un chiffre à vérifier, une idée d'achat, un risque).";
   const sourcing = `   Fais tes propres recherches web autant que nécessaire et ouvre les pages dont tu tires un chiffre ou un argument, plutôt que de te fier aux extraits. Croise des sources variées : presse financière (Les Echos, Boursorama, Zonebourse, Reuters, Bloomberg, CNBC, Financial Times), communiqués et rapports de l'entreprise, régulateurs (AMF, SEC). Une information importante doit venir d'au moins deux sources, ou être signalée comme non confirmée.${
     marketTools
-      ? "\n   Pour les chiffres d'une entreprise, utilise les outils de données boursières du connecteur AInvest : search_security (trouver le symbole), get_company_fundamentals (valorisation, ratios, résultats, bilan, consensus d'analystes), get_earnings_calendar (dates de résultats à venir) et screen_stocks (chercher des idées d'achat selon des critères chiffrés). Cite « Financial Modeling Prep » comme source de ces chiffres. Si une section est indisponible, complète par la recherche web."
+      ? "\n   Pour les chiffres d'une entreprise, utilise les outils de données boursières du connecteur AInvest : search_security (trouver le symbole), get_company_fundamentals (valorisation, ratios, résultats, bilan, consensus d'analystes), get_price_history (lire la courbe : moyennes mobiles, RSI, ATR, supports et résistances), get_earnings_calendar (dates de résultats à venir), get_economic_calendar (agenda macro) et screen_stocks (chercher des idées d'achat selon des critères chiffrés). Cite « Financial Modeling Prep » comme source de ces chiffres. Si une section est indisponible, complète par la recherche web."
       : ""
   }`;
+  const skills =
+    "\n   Si tu travailles dans le dépôt AInvest (Claude Code), lis d'abord le skill seance-ainvest : il indique quels skills utiliser pour lire une courbe, analyser une entreprise ou une actualité, et placer stop loss et take profit.";
   const history = previous?.proposals?.length
     ? previous.proposals
         .map((p) => `- ${p.title} (${p.ticker}) : ${p.decision.status}${p.decision.note ? `, note : ${p.decision.note}` : ""}`)
@@ -40,7 +42,7 @@ Ton rôle : lire l'état réel de son patrimoine, scruter l'actualité qui conce
 Méthode, dans cet ordre :
 1. Lis le patrimoine avec les outils du connecteur Finary (vue d'ensemble, comptes, positions), en lecture seule. Repère le compte-titres ordinaire (CTO). N'invente aucun chiffre : si une donnée manque, dis-le.
 ${research}
-${sourcing}
+${sourcing}${skills}
 ${
     notes !== null
       ? "3. Tiens ton carnet de notes (connecteur AInvest), qui te suit d'une séance à l'autre. Relis les notes ouvertes plus bas avant de décider : échéances arrivées, pistes à revoir, raisons de tes décisions passées. Pendant la séance, ajoute avec add_note les dates utiles à venir (résultats, dividendes, banques centrales), la raison de chaque proposition ou de chaque refus d'agir, et les pistes à surveiller avec le seuil qui te ferait changer d'avis. Avec update_note, complète une note quand le sujet avance et ferme-la quand il est réglé. Tiens compte des décisions de l'utilisateur sur la séance précédente.\n"
