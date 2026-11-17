@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
-import { finaryStatus } from "@/lib/finary-oauth";
 import { getRules } from "@/lib/sessions";
 import { Shell } from "@/components/Shell";
 import { RulesForm } from "@/components/RulesForm";
@@ -9,9 +8,9 @@ export const dynamic = "force-dynamic";
 
 export default async function RulesPage() {
   if (!(await isLoggedIn())) redirect("/login");
-  const [rules, finary] = await Promise.all([getRules(), finaryStatus()]);
+  const rules = await getRules();
   return (
-    <Shell finaryConnected={finary.connected}>
+    <Shell>
       <div className="page-head">
         <div>
           <div className="eyebrow">Garde-fous</div>

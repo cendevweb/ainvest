@@ -1,69 +1,58 @@
 import { redirect } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
-import { finaryStatus, redirectUri } from "@/lib/finary-oauth";
-import { connectorUrl, model } from "@/lib/env";
+import { apiModeAvailable, connectorUrl } from "@/lib/env";
+import { monthlyBudgetUsd, spentThisMonth } from "@/lib/budget";
 import { Shell } from "@/components/Shell";
-import { dateFr } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function Settings({ searchParams }: { searchParams: Promise<{ erreur?: string; finary?: string }> }) {
+export default async function Settings() {
   if (!(await isLoggedIn())) redirect("/login");
-  const { erreur, finary: finaryParam } = await searchParams;
-  const finary = await finaryStatus();
   const connector = connectorUrl();
+  const hasKey = apiModeAvailable();
+  const spent = hasKey ? await spentThisMonth().catch(() => 0) : 0;
   return (
-    <Shell finaryConnected={finary.connected}>
+    <Shell>
       <div className="page-head">
         <div>
           <div className="eyebrow">Configuration</div>
           <h1>Paramètres</h1>
-          <p>Ton instance est à toi seul : ta clé Claude reste dans tes variables Vercel, ton jeton Finary est chiffré dans ta base Redis.</p>
+          <p>
+            Ta routine Claude lit ton patrimoine avec son connecteur Finary et dépose ses rapports ici via le connecteur AInvest.
+            L&apos;app n&apos;a aucun accès direct à Finary.
+          </p>
         </div>
       </div>
-      {erreur && <div className="banner" role="alert"><span className="chip bad">Erreur</span>{erreur}</div>}
-      {finaryParam === "ok" && <div className="banner" role="status"><span className="chip ok">Connecté</span>Finary est connecté. Tu peux lancer une séance.</div>}
       <div className="grid">
         <div className="panel">
-          <h2>Finary</h2>
-          {finary.connected ? (
-            <>
-              <p style={{ marginTop: 0 }}>
-                Connecté depuis le {dateFr(finary.connectedAt!)}.
-                {finary.expiresAt ? " Le jeton se renouvelle automatiquement." : ""}
-              </p>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <a className="btn" href="/api/finary/connect">Reconnecter</a>
-                <form action="/api/finary/disconnect" method="post"><button className="btn danger" type="submit">Déconnecter</button></form>
-              </div>
-            </>
-          ) : (
-            <>
-              <p style={{ marginTop: 0 }}>Tu vas être redirigé vers l&apos;écran d&apos;autorisation Finary. Accorde l&apos;accès en lecture au patrimoine ; les autres droits sont facultatifs.</p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <a className="btn primary" href="/api/finary/connect">Connecter Finary</a>
-                <form action="/api/finary/disconnect" method="post"><button className="btn" type="submit">Réinitialiser le client OAuth</button></form>
-              </div>
-            </>
-          )}
-          <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>URL de retour OAuth : <code>{redirectUri()}</code>. Tu peux révoquer l&apos;accès à tout moment dans Finary, rubrique Sécurité.</p>
-        </div>
-        <div className="panel">
-          <h2>Connecteur AInvest pour ton Claude</h2>
+          <h2>Connecteur AInvest</h2>
           {connector ? (
             <>
-              <p style={{ marginTop: 0 }}>Ajoute cette URL comme connecteur, à côté de Finary, dans Claude Code ou sur claude.ai. Elle contient un secret : ne la partage pas.</p>
-              <pre className="code-block"><code>claude mcp add --transport http ainvest {connector}</code></pre>
+              <p style={{ marginTop: 0 }}>
+                Ajoute cette URL comme connecteur personnalisé sur claude.ai (Réglages → Connecteurs), à côté de Finary, puis clique sur
+                « Connecter ». Elle contient un secret : ne la partage pas.
+              </p>
+              <pre className="code-block"><code>{connector}</code></pre>
             </>
           ) : (
-            <p style={{ marginTop: 0 }}>Définis <code>INGEST_TOKEN</code> dans les variables Vercel (<code>openssl rand -base64 32 | tr &apos;+/&apos; &apos;-_&apos; | tr -d &apos;=&apos;</code>) puis redéploie pour obtenir l&apos;URL du connecteur.</p>
+            <p style={{ marginTop: 0 }}>
+              Définis <code>INGEST_TOKEN</code> dans les variables Vercel (<code>openssl rand -base64 32 | tr &apos;+/&apos; &apos;-_&apos; | tr -d &apos;=&apos;</code>) puis
+              redéploie pour obtenir l&apos;URL du connecteur.
+            </p>
           )}
+          <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
+            La séance quotidienne est une tâche planifiée Claude : voir le guide <code>docs/routine-claude.md</code> du dépôt.
+          </p>
         </div>
         <div className="panel">
-          <h2>Claude</h2>
-          <div className="row"><span>Modèle</span><code>{model()}</code></div>
-          <div className="row"><span>Clé API</span><span className="chip ok">Dans les variables Vercel</span></div>
-          <div className="row"><span>Séance planifiée</span><span>Jours ouvrés, avant 9 h (heure de Paris)</span></div>
+          <h2>Brief marché (clé API)</h2>
+          <div className="row">
+            <span>Clé API</span>
+            {hasKey ? <span className="chip ok">Dans les variables Vercel</span> : <span className="chip warn">Absente : pas de brief</span>}
+          </div>
+          <div className="row"><span>Modèle</span><code>{process.env.AINVEST_BRIEF_MODEL || "claude-sonnet-5-5"}</code></div>
+          <div className="row"><span>Horaire</span><span>Jours ouvrés, 6 h 15 (7 h 15 en été)</span></div>
+          {hasKey && <div className="row"><span>Dépense du mois</span><span>{spent.toFixed(2)} $ / {monthlyBudgetUsd()} $</span></div>}
         </div>
       </div>
     </Shell>

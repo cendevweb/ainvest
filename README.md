@@ -10,8 +10,9 @@ Le code est public, mais chaque personne déploie **sa propre instance** sur son
 
 | Donnée | Où elle vit |
 | --- | --- |
-| Clé API Claude | Variables d'environnement de *ton* projet Vercel. Jamais envoyée au navigateur. |
-| Jeton Finary (OAuth) | *Ta* base Redis, chiffré en AES-256-GCM avec `ENCRYPTION_KEY`. |
+| Clé API Claude (brief marché) | Variables d'environnement de *ton* projet Vercel. Jamais envoyée au navigateur. |
+| Accès Finary | Uniquement dans tes connecteurs claude.ai. L'app n'en détient aucun. |
+| Secret du connecteur AInvest | `INGEST_TOKEN`, dans les variables de *ton* projet Vercel. |
 | Séances, propositions, décisions | *Ta* base Redis. |
 | Code, prompts, règles par défaut | Ce repo public. Aucun secret. |
 
@@ -27,11 +28,9 @@ L'URL Vercel étant publique, l'accès à l'app est protégé par un mot de pass
    - `AINVEST_BRIEF_MODEL` (facultatif) : modèle du brief, `claude-sonnet-5-5` par défaut.
    - `AINVEST_MONTHLY_BUDGET_USD` (facultatif) : budget mensuel de la clé API, 100 $ par défaut. Chaque exécution est comptée (jetons et recherches web au prix catalogue) et refusée si elle risque de le dépasser.
    - `APP_PASSWORD` : le mot de passe de ton instance.
-   - `APP_SECRET` et `ENCRYPTION_KEY` : deux valeurs différentes, générées chacune avec `openssl rand -base64 32`.
+   - `APP_SECRET` : une valeur générée avec `openssl rand -base64 32`.
    - `CRON_SECRET` : une longue valeur aléatoire ; Vercel l'envoie à la tâche planifiée.
    - `APP_URL` : l'URL de ton instance, par exemple `https://mon-ainvest.vercel.app`.
-   - `FINARY_CLIENT_ID` (facultatif) : le client OAuth que Finary a autorisé pour ton instance (voir *Limites connues*).
-   - `AINVEST_MODEL` (facultatif) : `claude-opus-5-5` par défaut, `claude-sonnet-5-5` pour réduire le coût.
 4. **Déploie**, ouvre ton URL et entre ton mot de passe.
 5. **Mets en place la routine Claude** : ajoute les connecteurs Finary et AInvest sur claude.ai puis crée la tâche planifiée, en suivant [docs/routine-claude.md](docs/routine-claude.md).
 
@@ -50,13 +49,10 @@ Finary n'ouvre son serveur MCP qu'aux clients qu'il a approuvés, dont Claude. L
 
 **Approfondir une proposition sur ton abonnement.** Le bouton « Creuser avec Claude » de chaque proposition ouvre claude.ai avec une consigne préremplie. Ton Claude relit la séance avec l'outil `get_session` du connecteur AInvest, vérifie ta position avec Finary et approfondit. Rien n'est facturé sur la clé API.
 
-Le mode historique, où l'app lance la séance via l'API Claude et sa propre connexion Finary (`ANTHROPIC_API_KEY` et `vercel.json`), reste dans le code. Il ne sert que si Finary approuve ton instance ; sinon la tâche planifiée Vercel ne fait rien.
-
 ## Limites connues
 
 - **Exécution des ordres** : non branchée. Trade Republic n'a pas d'API d'ordres publique ; les bibliothèques non officielles exposent à un blocage de compte.
-- **Connexion Finary directe par l'app** : Finary n'accepte que des clients OAuth qu'il a approuvés. L'app reçoit donc `invalid_client` tant que Finary n'a pas autorisé ton instance, d'où la routine Claude. Si Finary t'accorde un client, renseigne son `client_id` dans `FINARY_CLIENT_ID` (URL de retour : `https://ton-instance/api/finary/callback`) pour activer le mode où l'app lance tout elle-même.
-- **Chiffres du CTO** : les règles sont vérifiées sur l'instantané que Claude relaie depuis Finary, l'app n'ayant pas d'accès direct à Finary.
+- **Chiffres du CTO** : les règles sont vérifiées sur l'instantané que ta routine relaie depuis Finary, l'app n'ayant pas d'accès direct à Finary (Finary réserve son serveur MCP aux clients qu'il a approuvés, dont Claude).
 
 ## Développement
 

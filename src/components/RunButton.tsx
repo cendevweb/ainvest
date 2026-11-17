@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function RunButton({
-  label = "Lancer une séance",
+  label,
   className = "btn primary",
-  endpoint = "/api/session/run",
+  endpoint,
 }: {
-  label?: string;
+  label: string;
   className?: string;
-  endpoint?: string;
+  endpoint: string;
 }) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
@@ -31,7 +31,7 @@ export function RunButton({
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.ok) setError(body.error ?? `Erreur ${res.status}`);
     } catch {
-      setError("La séance a été interrompue (réseau ou délai dépassé). Elle peut avoir abouti : recharge la page.");
+      setError("Interrompu (réseau ou délai dépassé). L'opération peut avoir abouti : recharge la page.");
     } finally {
       setRunning(false);
       router.refresh();
