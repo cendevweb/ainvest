@@ -11,7 +11,8 @@ export type StoredProposal = Proposal & {
   decision: { status: DecisionStatus; at?: number; quantity?: number; note?: string };
 };
 
-export type TraceStep = { kind: "finary" | "web_search" | "web_fetch" | "report" | "other"; tool: string; label: string };
+export type TraceKind = "finary" | "web_search" | "web_fetch" | "decision" | "report" | "other";
+export type TraceStep = { kind: TraceKind; tool: string; label: string; detail?: string; at?: number };
 
 export type Session = {
   id: string;
@@ -23,6 +24,8 @@ export type Session = {
   error?: string;
   seenAt?: number;
   trace: TraceStep[];
+  /** Lien vers la conversation Claude Code de la routine, pour une séance lancée depuis l'app. */
+  claudeSessionUrl?: string;
   stats?: {
     durationMs: number;
     toolCalls: Record<string, number>;
@@ -72,6 +75,21 @@ export async function listSessions(limit = 30): Promise<Session[]> {
 
 export async function latestSession(): Promise<Session | null> {
   return (await listSessions(1))[0] ?? null;
+}
+
+/** Une séance « en cours » depuis plus de 45 min est considérée comme interrompue. */
+export const STALE_MS = 45 * 60 * 1000;
+
+export function isStale(s: Session, now = Date.now()): boolean {
+  return s.status === "running" && now - s.startedAt > STALE_MS;
+}
+
+export async function appendTrace(id: string, step: TraceStep): Promise<Session | null> {
+  const s = await getSession(id);
+  if (!s) return null;
+  s.trace = [...s.trace, { ...step, at: step.at ?? Date.now() }].slice(-200);
+  await redis().set(keys.session(s.id), s);
+  return s;
 }
 
 export function hasRunToday(s: Session | null, now = new Date()): boolean {

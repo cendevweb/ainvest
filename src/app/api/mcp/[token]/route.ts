@@ -2,7 +2,7 @@ import { safeEqual, randomToken } from "@/lib/crypto";
 import { finalizeReport } from "@/lib/ingest";
 import { sessionInstructions, todayFr } from "@/lib/prompt";
 import { ReportSchema, reportJsonSchema } from "@/lib/schema";
-import { getRules, getSession, latestSession, saveSession, type Session } from "@/lib/sessions";
+import { appendTrace, getRules, getSession, isStale, latestSession, listSessions, saveSession, type Session, type TraceKind } from "@/lib/sessions";
 import { eur } from "@/lib/format";
 import { briefAsText, getBrief } from "@/lib/brief";
 
@@ -21,8 +21,35 @@ const TOOLS = [
     title: "Contexte de la séance AInvest",
     description:
       "À appeler en premier. Renvoie les consignes de la séance du jour : règles de l'utilisateur, décisions sur la séance précédente et méthode à suivre.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: "object",
+      properties: {
+        session_id: {
+          type: "string",
+          description: "Identifiant de séance donné dans ta consigne de lancement (« Identifiant de séance AInvest : … »). Facultatif : sans lui, une séance est ouverte.",
+        },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: "log_step",
+    title: "Journaliser une étape de la séance",
+    description:
+      "Ajoute une entrée au journal que l'utilisateur suit en direct : une lecture Finary, une recherche ou page web importante, ou une décision majeure de ton raisonnement. Phrases courtes, aucun identifiant de compte.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        session_id: { type: "string", description: "Identifiant renvoyé par get_session_context." },
+        kind: { type: "string", enum: ["finary", "web_search", "web_fetch", "decision", "other"] },
+        label: { type: "string", description: "Ce que tu as fait ou décidé, en une phrase (200 caractères max)." },
+        detail: { type: "string", description: "Facultatif. Pour une décision : le raisonnement en 1 à 3 phrases (600 caractères max)." },
+      },
+      required: ["session_id", "kind", "label"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
     name: "get_session",
@@ -41,7 +68,13 @@ const TOOLS = [
     title: "Déposer le rapport AInvest",
     description:
       "À appeler une seule fois, à la fin. Dépose le rapport de la séance (instantané du CTO, synthèse, actualités, propositions). L'app vérifie chaque proposition contre les règles et renvoie celles qui sont bloquées.",
-    inputSchema: reportJsonSchema,
+    inputSchema: {
+      ...reportJsonSchema,
+      properties: {
+        ...reportJsonSchema.properties,
+        session_id: { type: "string", description: "Identifiant renvoyé par get_session_context. Facultatif." },
+      },
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   },
 ];
@@ -59,9 +92,66 @@ function authorized(token: string): boolean {
   return Boolean(expected && expected.length >= 24 && safeEqual(token, expected));
 }
 
-async function getContext() {
-  const [rules, previous, brief] = await Promise.all([getRules(), latestSession(), getBrief()]);
-  return text(sessionInstructions(rules, todayFr(), previous, brief ? briefAsText(brief) : null));
+const KINDS: TraceKind[] = ["finary", "web_search", "web_fetch", "decision", "other"];
+const SESSION_ID = /^\d{4}-\d{2}-\d{2}-[A-Za-z0-9_-]{4,16}$/;
+
+function argString(args: unknown, key: string): string | null {
+  const v = (args as Record<string, unknown> | null | undefined)?.[key];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+/** Séance « en cours » à utiliser : celle demandée si elle tourne encore, sinon une nouvelle. */
+async function openSession(requested: string | null): Promise<Session> {
+  if (requested && SESSION_ID.test(requested)) {
+    const s = await getSession(requested);
+    if (s && s.status === "running" && !isStale(s)) return s;
+  }
+  const now = Date.now();
+  const session: Session = {
+    id: `${new Date(now).toISOString().slice(0, 10)}-${randomToken(4)}`,
+    trigger: "claude",
+    status: "running",
+    model: "Routine Claude",
+    startedAt: now,
+    trace: [{ kind: "other", tool: "routine", label: "Séance ouverte par ta routine Claude", at: now }],
+    proposals: [],
+  };
+  await saveSession(session);
+  return session;
+}
+
+async function getContext(args: unknown) {
+  const [rules, previousLatest, brief] = await Promise.all([getRules(), latestSession(), getBrief()]);
+  const session = await openSession(argString(args, "session_id"));
+  // La séance précédente est la dernière séance terminée, pas celle qu'on vient d'ouvrir.
+  const previous =
+    previousLatest && previousLatest.id !== session.id && previousLatest.status === "done"
+      ? previousLatest
+      : (await listSessions(5)).find((s) => s.id !== session.id && s.status === "done") ?? null;
+  if (!session.trace.some((t) => t.tool === "get_session_context")) {
+    await appendTrace(session.id, { kind: "other", tool: "get_session_context", label: "Consignes et règles lues" });
+  }
+  return text(sessionInstructions(rules, todayFr(), previous, session.id, brief ? briefAsText(brief) : null));
+}
+
+async function logStep(args: unknown) {
+  const id = argString(args, "session_id");
+  const kind = argString(args, "kind") as TraceKind | null;
+  const label = argString(args, "label");
+  if (!id || !label || !kind || !KINDS.includes(kind)) {
+    return text("log_step attend session_id, kind (finary, web_search, web_fetch, decision, other) et label.", true);
+  }
+  const s = id && SESSION_ID.test(id) ? await getSession(id) : null;
+  if (!s) return text(`Séance ${id} introuvable : utilise l'identifiant renvoyé par get_session_context.`, true);
+  if (s.status !== "running") return text(`Séance ${id} déjà close, entrée ignorée.`);
+  const detail = argString(args, "detail");
+  await appendTrace(id, {
+    kind,
+    tool: kind === "decision" ? "décision" : kind,
+    label: label.slice(0, 200),
+    ...(detail ? { detail: detail.slice(0, 600) } : {}),
+  });
+  return text("Noté.");
 }
 
 async function readSession(args: unknown) {
@@ -73,22 +163,29 @@ async function readSession(args: unknown) {
 }
 
 async function submitReport(args: unknown) {
-  const parsed = ReportSchema.safeParse(args);
+  const requested = argString(args, "session_id");
+  const { session_id: _sid, ...reportArgs } = (args ?? {}) as Record<string, unknown>;
+  const parsed = ReportSchema.safeParse(reportArgs);
   if (!parsed.success) {
     const issues = parsed.error.issues.slice(0, 8).map((i) => `- ${i.path.join(".") || "(racine)"} : ${i.message}`).join("\n");
     return text(`Rapport refusé, il ne respecte pas le schéma. Corrige puis rappelle submit_report :\n${issues}`, true);
   }
   const rules = await getRules();
-  const now = Date.now();
-  const session: Session = {
-    id: `${new Date(now).toISOString().slice(0, 10)}-${randomToken(4)}`,
-    trigger: "claude",
-    status: "running",
-    model: "Ton Claude (connecteur)",
-    startedAt: now,
-    trace: [{ kind: "report", tool: "submit_report", label: "Rapport déposé par ton Claude via le connecteur AInvest" }],
-    proposals: [],
-  };
+  let session = requested && SESSION_ID.test(requested) ? await getSession(requested) : null;
+  if (!session || session.status === "done") {
+    const now = Date.now();
+    session = {
+      id: `${new Date(now).toISOString().slice(0, 10)}-${randomToken(4)}`,
+      trigger: "claude",
+      status: "running",
+      model: "Routine Claude",
+      startedAt: now,
+      trace: [],
+      proposals: [],
+    };
+  }
+  session.error = undefined;
+  session.trace = [...session.trace, { kind: "report", tool: "submit_report", label: "Rapport déposé par ta routine Claude", at: Date.now() }];
   finalizeReport(session, parsed.data, rules);
   await saveSession(session);
 
@@ -130,7 +227,8 @@ async function handle(req: RpcRequest) {
     case "tools/call": {
       const name = req.params?.name;
       try {
-        if (name === "get_session_context") return ok(req.id, await getContext());
+        if (name === "get_session_context") return ok(req.id, await getContext(req.params?.arguments));
+        if (name === "log_step") return ok(req.id, await logStep(req.params?.arguments));
         if (name === "get_session") return ok(req.id, await readSession(req.params?.arguments));
         if (name === "submit_report") return ok(req.id, await submitReport(req.params?.arguments));
       } catch (err) {

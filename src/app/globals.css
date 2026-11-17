@@ -159,6 +159,9 @@ label.field input, label.field select, label.field textarea { margin-top: 6px; d
 .trace .ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--accent-soft); color: var(--accent); font-family: var(--f-mono); }
 .trace .ic.web_search, .trace .ic.web_fetch { background: var(--gold-soft); color: var(--warn); }
 .trace .ic.report { background: var(--gain-soft); color: var(--gain); }
+.trace .ic.decision { background: var(--accent); color: #fff; }
+.trace li.is-decision .d { font-weight: 600; }
+.trace .dd { font-size: 12.5px; color: var(--muted); margin-top: 2px; white-space: pre-line; word-break: break-word; }
 .trace .tool { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 .trace .d { font-size: 13px; word-break: break-word; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

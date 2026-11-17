@@ -27,6 +27,7 @@ L'URL Vercel étant publique, l'accès à l'app est protégé par un mot de pass
    - `ANTHROPIC_API_KEY` : une clé dédiée créée sur console.anthropic.com, idéalement avec une limite de dépense mensuelle. Elle paie le brief marché du matin.
    - `AINVEST_BRIEF_MODEL` (facultatif) : modèle du brief, `claude-sonnet-5-5` par défaut.
    - `AINVEST_MONTHLY_BUDGET_USD` (facultatif) : budget mensuel de la clé API, 100 $ par défaut. Chaque exécution est comptée (jetons et recherches web au prix catalogue) et refusée si elle risque de le dépasser.
+   - `ROUTINE_FIRE_URL` et `ROUTINE_FIRE_TOKEN` (facultatifs) : le déclencheur API de ta routine Claude, pour le bouton « Lancer une séance » (voir [docs/routine-claude.md](docs/routine-claude.md)).
    - `APP_PASSWORD` : le mot de passe de ton instance.
    - `APP_SECRET` : une valeur générée avec `openssl rand -base64 32`.
    - `CRON_SECRET` : une longue valeur aléatoire ; Vercel l'envoie à la tâche planifiée.
@@ -47,7 +48,7 @@ Finary n'ouvre son serveur MCP qu'aux clients qu'il a approuvés, dont Claude. L
 
 **Brief marché avec ta clé API.** La tâche planifiée Vercel tourne à 5 h 15 UTC du lundi au vendredi (6 h 15 en hiver, 7 h 15 en été à Paris). Avec `ANTHROPIC_API_KEY`, elle prépare le brief du matin : macro, marchés, agenda et actualité de chaque ligne connue, avec sources. Ta routine Claude le récupère dans `get_session_context` et ne fait plus que lire Finary et décider. Le brief s'affiche aussi sur le tableau de bord, avec la dépense du mois. Compte environ 0,50 à 1 $ par brief avec Sonnet, soit 10 à 25 $ par mois.
 
-**Lancer une séance à la main.** Le bouton « Lancer une séance » ouvre claude.ai avec la consigne de séance préremplie. Elle tourne sur ton abonnement avec tes connecteurs Finary et AInvest, comme la routine du matin, et le rapport arrive dans l'app.
+**Lancer une séance à la main.** Le bouton « Lancer une séance » démarre ta routine Claude par son déclencheur API, sans ouvrir claude.ai. La séance tourne dans le cloud sur ton abonnement, avec tes connecteurs Finary et AInvest. Pendant qu'elle tourne, l'app affiche en direct le **journal de Claude** : lectures Finary, recherches importantes et décisions majeures de son raisonnement (outil `log_step` du connecteur). Le rapport s'affiche dès qu'il est déposé, et le journal reste consultable sur chaque séance.
 
 **Approfondir une proposition sur ton abonnement.** Le bouton « Creuser avec Claude » de chaque proposition ouvre claude.ai avec une consigne préremplie. Ton Claude relit la séance avec l'outil `get_session` du connecteur AInvest, vérifie ta position avec Finary et approfondit. Rien n'est facturé sur la clé API.
 

@@ -4,7 +4,7 @@ import { isLoggedIn } from "@/lib/auth";
 import { apiModeAvailable } from "@/lib/env";
 import { latestBrief, parisDay } from "@/lib/brief";
 import { BriefPanel } from "@/components/BriefPanel";
-import { LaunchSessionButton } from "@/components/LaunchSessionButton";
+import { LaunchSession } from "@/components/LaunchSession";
 import { monthlyBudgetUsd, spentThisMonth } from "@/lib/budget";
 import { getRules, hasRunToday, latestSession } from "@/lib/sessions";
 import { Shell } from "@/components/Shell";
@@ -37,19 +37,19 @@ export default async function Home() {
           <h1>Prêt pour la première séance</h1>
           <p>
             Ta routine Claude lit ton patrimoine avec le connecteur Finary, parcourt l&apos;actualité de tes lignes puis dépose ici
-            ses propositions. Tu peux aussi lancer une séance tout de suite.
+            ses propositions. Tu peux aussi lancer une séance tout de suite : elle tourne chez Claude et le résultat s&apos;affiche ici.
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", alignItems: "flex-start" }}>
-            <LaunchSessionButton label="Lancer la première séance" />
+            <LaunchSession label="Lancer la première séance" />
             <Link className="btn" href="/parametres">Configurer le connecteur</Link>
           </div>
         </div>
       ) : (
         <>
-          {!hasRunToday(session) && (
+          {!hasRunToday(session) && session.status !== "running" && (
             <div className="banner">
-              <span>Pas encore de séance aujourd&apos;hui. Elle arrive dès que ta routine Claude a déposé son rapport.</span>
-              <span style={{ marginLeft: "auto" }}><LaunchSessionButton label="Lancer maintenant" className="btn" hint={false} /></span>
+              <span>Pas encore de séance aujourd&apos;hui. Ta routine Claude passe chaque matin, ou lance-la tout de suite.</span>
+              <span style={{ marginLeft: "auto" }}><LaunchSession label="Lancer maintenant" className="btn" /></span>
             </div>
           )}
           <SessionView session={session} rules={rules} isLatest />

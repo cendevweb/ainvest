@@ -1,12 +1,36 @@
 import Link from "next/link";
-import type { Session } from "@/lib/sessions";
+import { isStale, type Session, type TraceStep } from "@/lib/sessions";
 import type { Rules } from "@/lib/rules";
 import { dateFr, duration, eur, pct, signedEur } from "@/lib/format";
 import { ProposalCard } from "./ProposalCard";
-import { LaunchSessionButton } from "./LaunchSessionButton";
+import { LaunchSession } from "./LaunchSession";
+import { LiveRefresh } from "./LiveRefresh";
 import { AllocationDonut } from "./AllocationDonut";
 
-const KIND_ICON: Record<string, string> = { finary: "F", web_search: "W", web_fetch: "P", report: "✓", other: "·" };
+const KIND_ICON: Record<string, string> = { finary: "F", web_search: "W", web_fetch: "P", decision: "D", report: "✓", other: "·" };
+
+function timeFr(ms?: number) {
+  return ms ? new Date(ms).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+}
+
+/** Journal de la séance : actions principales de Claude et décisions de son raisonnement. */
+function Journal({ steps }: { steps: TraceStep[] }) {
+  if (!steps.length) return <p className="muted" style={{ margin: 0 }}>Aucune étape journalisée pour l&apos;instant.</p>;
+  return (
+    <ol className="trace">
+      {steps.map((t, i) => (
+        <li key={i} className={t.kind === "decision" ? "is-decision" : undefined}>
+          <span className={`ic ${t.kind}`}>{KIND_ICON[t.kind] ?? "·"}</span>
+          <div>
+            <div className="tool">{t.kind === "decision" ? "Décision" : t.tool}{t.at ? ` · ${timeFr(t.at)}` : ""}</div>
+            <div className="d">{t.label}</div>
+            {t.detail && <div className="dd">{t.detail}</div>}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 export function SessionView({ session, rules, isLatest }: { session: Session; rules: Rules; isLatest: boolean }) {
   const r = session.report;
@@ -14,11 +38,33 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
   const approved = session.proposals.filter((p) => p.decision.status === "approved").length;
 
   if (session.status !== "done" || !r) {
+    const stale = isStale(session);
+    const running = session.status === "running" && !stale;
     return (
-      <div className="panel empty">
-        <h2>{session.status === "running" ? "Séance en cours…" : "La séance a échoué"}</h2>
-        <p>{session.status === "running" ? "Claude lit ton patrimoine et l'actualité. Recharge la page dans une minute." : session.error}</p>
-        {isLatest && session.status === "error" && <LaunchSessionButton label="Relancer une séance" />}
+      <div className="stack">
+        {running && <LiveRefresh />}
+        <div className="panel empty">
+          <h2>{running ? <><span className="spin" aria-hidden="true" style={{ display: "inline-block", marginRight: 10, verticalAlign: "-1px" }} />Séance en cours…</> : stale ? "La séance s'est interrompue" : "La séance a échoué"}</h2>
+          <p>
+            {running
+              ? "Claude lit ton patrimoine et l'actualité. Le journal ci-dessous se met à jour tout seul, le résultat s'affichera ici."
+              : stale
+                ? "Aucun rapport n'est arrivé dans les 45 minutes. Ouvre la conversation Claude pour voir ce qui s'est passé, ou relance."
+                : session.error}
+          </p>
+          {session.claudeSessionUrl && (
+            <p style={{ marginTop: 0 }}>
+              <a href={session.claudeSessionUrl} target="_blank" rel="noreferrer noopener" className="muted" style={{ fontSize: 13 }}>
+                Voir la conversation de la routine sur claude.ai
+              </a>
+            </p>
+          )}
+          {isLatest && !running && <LaunchSession label="Relancer une séance" />}
+        </div>
+        <div className="panel">
+          <h2>Journal de la séance</h2>
+          <Journal steps={session.trace} />
+        </div>
       </div>
     );
   }
@@ -41,7 +87,7 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
           <p>{r.summary}</p>
           {isLatest && (
             <div className="actions">
-              <LaunchSessionButton label="Relancer une séance" className="btn secondary" hint={false} />
+              <LaunchSession label="Relancer une séance" className="btn secondary" />
             </div>
           )}
         </div>
@@ -116,19 +162,22 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
               <div className="stats">
                 <div><div className="v">{session.stats.sources}</div><div className="s">recherches et pages lues</div></div>
                 <div><div className="v">{duration(session.stats.durationMs)}</div><div className="s">durée</div></div>
-                <div><div className="v">{session.stats.costUsd.toFixed(2).replace(".", ",")} $</div><div className="s">coût API estimé</div></div>
+                {session.stats.costUsd > 0 ? (
+                  <div><div className="v">{session.stats.costUsd.toFixed(2).replace(".", ",")} $</div><div className="s">coût API estimé</div></div>
+                ) : (
+                  <div><div className="v">{session.trace.filter((t) => t.kind === "decision").length}</div><div className="s">décisions</div></div>
+                )}
               </div>
-              <details style={{ marginTop: 14 }}>
-                <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13 }}>Déroulé ({session.trace.length} étapes)</summary>
-                <ol className="trace" style={{ marginTop: 8 }}>
-                  {session.trace.map((t, i) => (
-                    <li key={i}>
-                      <span className={`ic ${t.kind}`}>{KIND_ICON[t.kind]}</span>
-                      <div><div className="tool">{t.tool}</div><div className="d">{t.label}</div></div>
-                    </li>
-                  ))}
-                </ol>
-              </details>
+            </div>
+          )}
+          {session.trace.length > 0 && (
+            <div className="panel">
+              <h2>Journal de Claude</h2>
+              <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>
+                {session.trace.filter((t) => t.kind === "decision").length} décision{session.trace.filter((t) => t.kind === "decision").length > 1 ? "s" : ""} · {session.trace.length} étapes
+                {session.claudeSessionUrl && <> · <a href={session.claudeSessionUrl} target="_blank" rel="noreferrer noopener">conversation complète</a></>}
+              </p>
+              <Journal steps={session.trace} />
             </div>
           )}
           {r.news.length > 0 && (
