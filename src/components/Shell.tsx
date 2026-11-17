@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { NavLinks } from "./NavLinks";
 
-export function Shell({ children, finaryConnected }: { children: React.ReactNode; finaryConnected: boolean }) {
+export function Shell({ children }: { children: React.ReactNode }) {
+  const connectorReady = (process.env.INGEST_TOKEN?.length ?? 0) >= 24;
   return (
     <>
       <header className="top">
@@ -16,10 +17,10 @@ export function Shell({ children, finaryConnected }: { children: React.ReactNode
           </Link>
           <NavLinks />
           <div className="top-right">
-            {finaryConnected ? (
-              <span className="chip ok"><span className="dot" />Finary connecté</span>
+            {connectorReady ? (
+              <span className="chip ok"><span className="dot" />Connecteur prêt</span>
             ) : (
-              <Link href="/parametres" className="chip warn"><span className="dot" />Connecter Finary</Link>
+              <Link href="/parametres" className="chip warn"><span className="dot" />Configurer le connecteur</Link>
             )}
             <form action="/api/logout" method="post">
               <button className="btn ghost" type="submit">Déconnexion</button>

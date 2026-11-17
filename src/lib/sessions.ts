@@ -74,15 +74,6 @@ export async function latestSession(): Promise<Session | null> {
   return (await listSessions(1))[0] ?? null;
 }
 
-/** Évite deux séances simultanées (clic + tâche planifiée). */
-export async function acquireLock(ttlSeconds = 900): Promise<boolean> {
-  return (await redis().set(keys.runLock, Date.now(), { nx: true, ex: ttlSeconds })) === "OK";
-}
-
-export async function releaseLock(): Promise<void> {
-  await redis().del(keys.runLock);
-}
-
 export function hasRunToday(s: Session | null, now = new Date()): boolean {
   if (!s || s.status === "error") return false;
   const day = (d: Date) => d.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });

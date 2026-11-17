@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
-import { finaryStatus } from "@/lib/finary-oauth";
 import { listSessions } from "@/lib/sessions";
 import { Shell } from "@/components/Shell";
 import { dateFr, duration } from "@/lib/format";
@@ -10,13 +9,13 @@ export const dynamic = "force-dynamic";
 
 export default async function Journal() {
   if (!(await isLoggedIn())) redirect("/login");
-  const [sessions, finary] = await Promise.all([listSessions(60), finaryStatus()]);
+  const sessions = await listSessions(60);
   const all = sessions.flatMap((s) => s.proposals.filter((p) => p.action !== "hold"));
   const decided = all.filter((p) => ["approved", "done", "rejected"].includes(p.decision.status));
   const accepted = all.filter((p) => ["approved", "done"].includes(p.decision.status));
 
   return (
-    <Shell finaryConnected={finary.connected}>
+    <Shell>
       <div className="page-head">
         <div>
           <div className="eyebrow">Historique</div>

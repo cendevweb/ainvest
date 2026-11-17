@@ -5,8 +5,8 @@ import type { Session } from "./sessions";
 
 /**
  * Transforme un rapport en séance finalisée : vérification des règles par le code,
- * statut initial de chaque proposition et statistiques. Commun aux deux modes
- * (séance via l'API, rapport déposé par ton Claude via le connecteur AInvest).
+ * statut initial de chaque proposition et statistiques, pour un rapport déposé
+ * par ta routine Claude via le connecteur AInvest.
  */
 export function finalizeReport(
   session: Session,

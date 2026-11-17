@@ -7,7 +7,7 @@ Le **brief marché** (macro, marchés, actualité de tes lignes) est préparé p
 ```
 Vercel, 6 h 15 (7 h 15 en été) → brief marché avec ta clé API
 
-Routine Claude (cloud), 7 h 30
+Routine Claude (cloud), 7 h 20
  ├─ connecteur AInvest → get_session_context : règles, décisions de la veille, méthode, brief du matin
  ├─ connecteur Finary  → vue d'ensemble, comptes, positions (lecture seule)
  ├─ recherche web      → seulement ce que le brief ne couvre pas
@@ -35,9 +35,9 @@ Tu peux vérifier dans une conversation : « Donne-moi la répartition de mon pa
 
 ## 3. Créer la routine
 
-Sur claude.ai/code, crée une tâche planifiée (routine) avec les connecteurs **Finary** et **AInvest** activés, un dépôt quelconque (par exemple ce repo) et :
+Sur claude.ai/code, crée une tâche planifiée (routine) avec les connecteurs **Finary** et **AInvest** activés et :
 
-- **Planification** : jours ouvrés à 7 h 30, heure de Paris (en cron UTC : `30 6 * * 1-5` en hiver, `30 5 * * 1-5` en été).
+- **Planification** : jours ouvrés vers 7 h 20, heure de Paris, après le brief (6 h 15 en hiver, 7 h 15 en été : décale à 7 h 35 l'été).
 - **Consigne** :
 
 ```text
@@ -55,4 +55,4 @@ Tu peux aussi lancer une séance à la main : colle la même consigne dans une c
 
 - Le rapport est validé par schéma, puis **chaque proposition est revérifiée par le code** contre tes règles (poids par ligne et secteur, liquidités, montant par ordre, nombre de propositions). Une proposition hors règles apparaît comme bloquée.
 - Rien n'est exécuté : tu approuves, passes l'ordre chez ton courtier et le marques comme passé.
-- La tâche planifiée Vercel ne fait rien tant que l'app n'a pas sa propre clé API et sa propre connexion Finary.
+- La tâche planifiée Vercel ne prépare le brief que si `ANTHROPIC_API_KEY` est renseignée, et jamais au-delà du budget mensuel.

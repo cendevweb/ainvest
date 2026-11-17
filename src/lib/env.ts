@@ -13,11 +13,7 @@ export function appUrl(): string {
   return requireEnv("APP_URL").replace(/\/$/, "");
 }
 
-export function model(): string {
-  return process.env.AINVEST_MODEL || "claude-opus-5-5";
-}
 
-export const FINARY_MCP_URL = "https://public-api.finary.com/mcp";
 
 /** URL du connecteur MCP d'AInvest, ou null si INGEST_TOKEN n'est pas défini. */
 export function connectorUrl(): string | null {
@@ -25,7 +21,7 @@ export function connectorUrl(): string | null {
   return token && token.length >= 24 ? `${appUrl()}/api/mcp/${token}` : null;
 }
 
-/** Mode historique : l'app lance elle-même la séance via l'API et son propre accès Finary. */
+/** La clé API Claude sert au brief marché du matin. */
 export function apiModeAvailable(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }

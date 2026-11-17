@@ -4,7 +4,6 @@ import type { Rules } from "@/lib/rules";
 import { dateFr, duration, eur, pct, signedEur } from "@/lib/format";
 import { ProposalCard } from "./ProposalCard";
 import { AllocationDonut } from "./AllocationDonut";
-import { RunButton } from "./RunButton";
 
 const KIND_ICON: Record<string, string> = { finary: "F", web_search: "W", web_fetch: "P", report: "✓", other: "·" };
 
@@ -18,7 +17,6 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
       <div className="panel empty">
         <h2>{session.status === "running" ? "Séance en cours…" : "La séance a échoué"}</h2>
         <p>{session.status === "running" ? "Claude lit ton patrimoine et l'actualité. Recharge la page dans une minute." : session.error}</p>
-        {isLatest && session.status === "error" && <RunButton label="Relancer la séance" />}
       </div>
     );
   }
@@ -39,11 +37,6 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
                 : "Rien à faire aujourd'hui"}
           </h1>
           <p>{r.summary}</p>
-          {isLatest && (
-            <div className="actions">
-              <RunButton label="Relancer une séance" className="btn secondary" />
-            </div>
-          )}
         </div>
         <div className="kpi">
           <div><div className="eyebrow">Patrimoine net</div><div className="v">{eur(r.snapshot.net_worth_eur)}</div></div>
@@ -115,7 +108,6 @@ export function SessionView({ session, rules, isLatest }: { session: Session; ru
               <h2>La séance en chiffres</h2>
               <div className="stats">
                 <div><div className="v">{session.stats.sources}</div><div className="s">recherches et pages lues</div></div>
-                <div><div className="v">{session.stats.toolCalls.finary ?? 0}</div><div className="s">lectures Finary</div></div>
                 <div><div className="v">{duration(session.stats.durationMs)}</div><div className="s">durée</div></div>
                 <div><div className="v">{session.stats.costUsd.toFixed(2).replace(".", ",")} $</div><div className="s">coût API estimé</div></div>
               </div>

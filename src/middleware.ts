@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Le middleware tourne sur l'edge runtime : il ne vérifie que la présence du cookie.
 // La signature est vérifiée côté serveur (pages et routes API) via lib/auth.
-const PUBLIC = ["/login", "/api/login", "/api/cron/daily", "/oauth/client-metadata.json"];
+const PUBLIC = ["/login", "/api/login", "/api/cron/daily"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

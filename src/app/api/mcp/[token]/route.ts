@@ -61,7 +61,7 @@ function authorized(token: string): boolean {
 
 async function getContext() {
   const [rules, previous, brief] = await Promise.all([getRules(), latestSession(), getBrief()]);
-  return text(sessionInstructions(rules, todayFr(), previous, "mcp", brief ? briefAsText(brief) : null));
+  return text(sessionInstructions(rules, todayFr(), previous, brief ? briefAsText(brief) : null));
 }
 
 async function readSession(args: unknown) {

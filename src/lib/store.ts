@@ -16,13 +16,9 @@ export function redis(): Redis {
 }
 
 export const keys = {
-  finaryClient: "finary:client",
-  finaryTokens: "finary:tokens",
-  oauthState: (state: string) => `oauth:state:${state}`,
   rules: "rules",
   sessionIndex: "sessions:index",
   session: (id: string) => `session:${id}`,
-  runLock: "session:lock",
   brief: (day: string) => `brief:${day}`,
   briefLatest: "brief:latest",
   budget: (month: string) => `budget:${month}`,
